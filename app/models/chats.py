@@ -10,12 +10,16 @@ class Message(BaseModel):
 
 class ChatCreateRequest(BaseModel):
     user_id: UUID
+    bot_name: str
     message: Message 
+
 
 
 class MessageCreateRequest(BaseModel):
     chat_id: UUID  # Required for adding a message to an existing chat
+    bot_name: str
     message: Message
+
 
 
 class MessageResponse(BaseModel):
