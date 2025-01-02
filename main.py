@@ -1,6 +1,8 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from app.constants import ALLOWED_ORIGINS
+from app.routes.chats import router as chat_router
+
 
 app = FastAPI()
 
@@ -16,6 +18,7 @@ app.add_middleware(
 def read_root():
     return {"Labmise Backend V1": "Online 👍"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+
+app.include_router(chat_router)
+
+
