@@ -33,6 +33,6 @@ class ChatCreateResponse(BaseModel):
     message: MessageResponse  # The first message with bot response
 
 
-class MessageAddResponse(BaseModel):
+class SendMessageResponse(BaseModel):
     chat_id: UUID
     message: MessageResponse  # The newly added message with bot response
