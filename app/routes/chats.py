@@ -1,74 +1,56 @@
-from uuid import uuid4
-from fastapi import APIRouter, HTTPException
+from uuid import UUID
+from fastapi import APIRouter
+from app.database.connection import PostgresConnection
+import psycopg2.extras
 
-from app.models.chats import (
-    ChatCreateRequest,
-    ChatCreateResponse,
-    MessageAddResponse,
-    MessageCreateRequest,
-    MessageResponse,
-)
+from app.routes.constant import MODEL_ROLE, USER_ROLE
+psycopg2.extras.register_uuid()
+from app.database.queries import create_chat, create_chat_message
+from app.schemas.chats import CreateChatRequest, MessageResponse, ChatResponse
 
-router = APIRouter(prefix="/chat", tags=["chat"])
-
-# In-memory storage for demonstration (replace with database logic)
-chats = {}
+router = APIRouter(prefix="/chats", tags=["chats"])
 
 
-@router.post("/", response_model=ChatCreateResponse)
-async def create_chat(request: ChatCreateRequest):
-    """
-    Create a new chat and add the first message.
-    """
+def call_llm(model_id: UUID, conversation_id: UUID, message: str) -> str:
+    # Placeholder function to simulate LLM response.
+    # Replace this with actual logic to call your LLM service.
+    return f"Assumed LLM response (Testing)"
 
-    chat_id = uuid4()
 
-    # Simulate bot response
-    bot_response = "Hi! This is a bot's response."
+@router.post("/", response_model=ChatResponse, status_code=201)
+async def create_chat_endpoint(request: CreateChatRequest):
+    generated_title = "-- TESTING --"  # TODO  generate a title based on the chat content
 
-    message_response = MessageResponse(
-        user_prompt=request.message.user_prompt,
-        bot_response=bot_response,
+    with PostgresConnection() as conn: # TODO replace with async connection
+        # Create chat record
+        chat_record = create_chat(conn, request.user_id, request.model_id, generated_title)
+
+        messages = []
+
+        # Insert user initial message
+        user_message_record = create_chat_message(
+            conn, chat_record["conversation_id"], USER_ROLE, request.initial_message 
+        )
+        messages.append(MessageResponse(**user_message_record))
+
+        # Call LLM to generate a response
+        llm_response = call_llm(
+            model_id=request.model_id,
+            conversation_id=chat_record["conversation_id"],
+            message=request.initial_message
+        )
+
+        # Insert LLM response as assistant message
+        assistant_message_record = create_chat_message(
+            conn, chat_record["conversation_id"], MODEL_ROLE, llm_response
+        )
+        messages.append(MessageResponse(**assistant_message_record))
+
+    # Construct and return response
+    chat_response = ChatResponse(
+        conversation_id=chat_record["conversation_id"],
+        model_id=chat_record["model_id"],
+        title=chat_record["title"],
+        messages=messages
     )
-
-    # Save chat to in-memory storage
-    chats[chat_id] = {
-        "user_id": request.user_id,
-        "conversation": [message_response],
-    }
-
-    # Return the response
-    return ChatCreateResponse(
-        user_id=request.user_id,
-        chat_id=chat_id,
-        message=message_response,
-    )
-
-
-@router.post("/send_message", response_model=MessageAddResponse)
-async def send_message(request: MessageCreateRequest):
-    """
-    Add a new message to an existing chat.
-    """
-    # Validate chat ID
-    chat_data = chats.get(request.chat_id)
-    if not chat_data:
-        raise HTTPException(status_code=404, detail="Chat not found")
-
-    # Simulate bot response
-    bot_response = "This is the bot's response to your message."
-
-    # Create the response message
-    new_message = MessageResponse(
-        user_prompt=request.message.user_prompt,
-        bot_response=bot_response,
-    )
-
-    # Append the new message to the chat's conversation
-    chat_data["conversation"].append(new_message)
-
-    # Return the response
-    return MessageAddResponse(
-        chat_id=request.chat_id,
-        message=new_message,
-    )
+    return chat_response

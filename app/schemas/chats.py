@@ -1,38 +1,23 @@
 from uuid import UUID
-from pydantic import BaseModel
 from typing import List
-from datetime import datetime
-from typing import Optional
+from pydantic import BaseModel
 
-class Message(BaseModel):
-    user_prompt: str
-
-
-class ChatCreateRequest(BaseModel):
+# Request model for creating a new chat (without requiring a title)
+class CreateChatRequest(BaseModel):
     user_id: UUID
-    bot_name: str
-    message: Message 
+    model_id: UUID
+    initial_message: str  # Required initial user message
 
-
-
-class MessageCreateRequest(BaseModel):
-    chat_id: UUID  # Required for adding a message to an existing chat
-    bot_name: str
-    message: Message
-
-
-
+# Response model for a single message
 class MessageResponse(BaseModel):
-    user_prompt: str
-    bot_response: str
+    message_id: int
+    conversation_id: UUID
+    sender_role: str
+    content: str
 
-
-class ChatCreateResponse(BaseModel):
-    user_id: UUID
-    chat_id: UUID
-    message: MessageResponse  # The first message with bot response
-
-
-class SendMessageResponse(BaseModel):
-    chat_id: UUID
-    message: MessageResponse  # The newly added message with bot response
+# Response model for a chat including its messages
+class ChatResponse(BaseModel):
+    conversation_id: UUID
+    model_id: UUID
+    title: str
+    messages: List[MessageResponse] = []
