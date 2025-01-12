@@ -1,3 +1,4 @@
+import datetime
 from uuid import UUID
 from typing import List
 from pydantic import BaseModel
@@ -16,8 +17,17 @@ class MessageResponse(BaseModel):
     content: str
 
 # Response model for a chat including its messages
-class ChatResponse(BaseModel):
+class CreateChatResponse(BaseModel):
     conversation_id: UUID
     model_id: UUID
     title: str
     messages: List[MessageResponse] = []
+
+# Request model for creating a new message in a chat
+class CreateMessageRequest(BaseModel):
+    conversation_id: UUID
+    content: str
+
+class ConversationSummary(BaseModel):
+    conversation_id: UUID
+    title: str

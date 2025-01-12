@@ -18,28 +18,76 @@ def get_all_models(conn: PGConnection) -> list:
         return cursor.fetchall()
 
 
-def get_chat_by_id(conn: PGConnection, chat_id: int) -> dict:
+def select_chat_context_by_id(conn: PGConnection, chat_id: UUID) -> dict:
+    """
+    Retrieve a specific chat context by its ID.
+    """
+    query = """
+    SELECT
+        c.model_id,
+        json_agg(
+          json_build_object(
+            'sender_role', m.sender_role,
+            'content', m.content,
+          ) ORDER BY m.created_at, m.message_id
+        ) AS messages
+    FROM conversations c
+    JOIN messages m ON c.conversation_id = m.conversation_id
+    WHERE c.conversation_id = %s
+    GROUP BY c.model_id;
+    """
+    # Use RealDictCursor for JSON output
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  
+        cursor.execute(query, (chat_id,))
+        records = cursor.fetchone()
+        return records
+
+
+def select_chat_by_id(conn: PGConnection, chat_id: UUID) -> dict:
     """
     Retrieve a specific chat by its ID.
     """
-    query = """"""
-    with conn.cursor() as cursor:
+    query = """
+    SELECT
+        c.model_id,
+        c.conversation_id,
+        c.created_at,
+        c.updated_at,
+        json_agg(
+          json_build_object(
+            'sender_role', m.sender_role,
+            'content', m.content
+          ) ORDER BY m.created_at, m.message_id
+        ) AS messages
+    FROM conversations c
+    JOIN messages m ON c.conversation_id = m.conversation_id
+    WHERE c.conversation_id = %s
+    GROUP BY c.model_id, c.conversation_id, c.created_at, c.updated_at;
+    """
+    # Use RealDictCursor for JSON output
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  
         cursor.execute(query, (chat_id,))
-        record = cursor.fetchone()
-        return record  # handle None or transform to a dict
+        records = cursor.fetchone()
+        return records
 
 
-def get_user_chat_titles(conn: PGConnection, user_id: int) -> list:
+def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset) -> list:
     """
     List all chat IDs and titles for a given user.
     """
-    query = """"""
-    with conn.cursor() as cursor:
-        cursor.execute(query, (user_id,))
+    query = """
+        SELECT conversation_id, title
+        FROM conversations
+        WHERE userid = %s
+        ORDER BY created_at DESC
+        LIMIT %s OFFSET %s;
+        """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (user_id, limit, offset))
         return cursor.fetchall()
 
 
-def create_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -> dict:
+def insert_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -> dict:
     """
     Create a new chat and return the inserted record.
     """
@@ -55,7 +103,7 @@ def create_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -
         return chat_id
 
 
-def create_chat_message(conn: PGConnection, chat_id: int, sender_role: str,  content: str) -> dict:
+def insert_chat_message(conn: PGConnection, chat_id: int, sender_role: str,  content: str) -> dict:
     """
     Create a new message in a given chat, returning the inserted record.
     """
