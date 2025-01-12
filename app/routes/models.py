@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
-from app.database import queries
+from app.database.queries import get_all_models
 from app.database.connection import PostgresConnection
 from app.schemas.models import ModelInfo
 
@@ -13,6 +13,6 @@ router = APIRouter(prefix="/models", tags=["models"])
 def list_models():
     """  List all available models. """
     with PostgresConnection() as conn:
-        rows = queries.get_all_models(conn)
+        rows = get_all_models(conn)
         models = [ModelInfo(model_id=row[0], model_name=row[1]) for row in rows]
         return models
