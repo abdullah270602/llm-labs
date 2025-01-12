@@ -13,7 +13,7 @@ def get_all_models(conn: PGConnection) -> list:
             model_name
         FROM models;
     """
-    with conn.cursor() as cursor:
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query)
         return cursor.fetchall()
 
@@ -28,7 +28,7 @@ def select_chat_context_by_id(conn: PGConnection, chat_id: UUID) -> dict:
         json_agg(
           json_build_object(
             'sender_role', m.sender_role,
-            'content', m.content,
+            'content', m.content
           ) ORDER BY m.created_at, m.message_id
         ) AS messages
     FROM conversations c
