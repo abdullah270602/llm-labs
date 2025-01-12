@@ -1,2 +1,2 @@
 USER_ROLE = 'user'
-MODEL_ROLE = 'model'
+ASSISTANT_ROLE = 'assistant'

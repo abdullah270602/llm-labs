@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.database.connection import PostgresConnection
 import psycopg2.extras
 
-from app.routes.constant import MODEL_ROLE, USER_ROLE
+from app.routes.constant import ASSISTANT_ROLE, USER_ROLE
 psycopg2.extras.register_uuid()
 from app.database.queries import (
     insert_chat,
@@ -77,6 +77,7 @@ async def create_message(request: CreateMessageRequest):
         
         # Retrieve conversation context to get model_id and existing messages
         chat_context = select_chat_context_by_id(conn, request.conversation_id)
+        print("🐍 File: routes/chats.py | Line: 80 | undefined ~ chat_context",chat_context)
         
         # Insert user message
         user_message_record = insert_chat_message(
@@ -96,7 +97,7 @@ async def create_message(request: CreateMessageRequest):
 
         # Insert LLM response as assistant message
         model_response_record = insert_chat_message(
-            conn, request.conversation_id, MODEL_ROLE, llm_response
+            conn, request.conversation_id, ASSISTANT_ROLE, llm_response
         )
         messages.append(MessageResponse(**model_response_record))
 
