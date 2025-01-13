@@ -43,7 +43,6 @@ async def create_chat(request: CreateChatRequest):
         messages.append(MessageResponse(**user_message_record))
 
         chat = [{"role": USER_ROLE, "content": request.initial_message},]
-        print("🐍 File: routes/chats.py | Line: 52 | undefined ~ chat_record",chat)
         
         # Call LLM to generate a response
         llm_response = get_reply_from_model(
@@ -127,7 +126,5 @@ async def get_user_chat_titles(
         # Convert each row into a ConversationSummary model
         conversations = [ConversationSummary(**row) for row in rows]
         
-        return conversations
-    
-    
-    # GET /conversations/?userid=123e4567-e89b-12d3-a456-426614174000&limit=5&offset=10
+    return conversations
+

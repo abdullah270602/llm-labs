@@ -12,8 +12,6 @@ def get_reply_from_model(model_id: str, chat: list[str]) -> str:
     
     with PostgresConnection() as conn:
         model_name = get_model_name_by_id(conn, model_id)
-        print("-"*50)
-        print("🐍 File: services/model_services.py | Line: 15 | get_reply_from_model ~ model_name",model_name)
     
     if model_name.startswith("openai"):
         return openai_service.get_reply(chat)
