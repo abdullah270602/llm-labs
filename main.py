@@ -3,8 +3,9 @@ from fastapi import FastAPI
 from app.constants import ALLOWED_ORIGINS
 from app.routes.chats import router as chat_router
 from app.routes.models import router as model_router
+from dotenv import load_dotenv
 
-
+load_dotenv()
 app = FastAPI()
 
 app.add_middleware(
@@ -21,5 +22,3 @@ def read_root():
 
 app.include_router(model_router)
 app.include_router(chat_router)
-
-
