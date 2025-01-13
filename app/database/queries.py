@@ -27,7 +27,7 @@ def select_chat_context_by_id(conn: PGConnection, chat_id: UUID) -> dict:
         c.model_id,
         json_agg(
           json_build_object(
-            'sender_role', m.sender_role,
+            'role', m.role,
             'content', m.content
           ) ORDER BY m.created_at, m.message_id
         ) AS messages
@@ -55,7 +55,7 @@ def select_chat_by_id(conn: PGConnection, chat_id: UUID) -> dict:
         c.updated_at,
         json_agg(
           json_build_object(
-            'sender_role', m.sender_role,
+            'role', m.role,
             'content', m.content
           ) ORDER BY m.created_at, m.message_id
         ) AS messages
@@ -103,17 +103,17 @@ def insert_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -
         return chat_id
 
 
-def insert_chat_message(conn: PGConnection, chat_id: int, sender_role: str,  content: str) -> dict:
+def insert_chat_message(conn: PGConnection, chat_id: int, role: str,  content: str) -> dict:
     """
     Create a new message in a given chat, returning the inserted record.
     """
     query = """
-    INSERT INTO messages (conversation_id, sender_role, content)
+    INSERT INTO messages (conversation_id, role, content)
     VALUES ( %s, %s, %s)
-    RETURNING message_id, conversation_id, sender_role, content;
+    RETURNING message_id, conversation_id, role, content;
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-        cursor.execute(query, (chat_id, sender_role, content))
+        cursor.execute(query, (chat_id, role, content))
         new_message = cursor.fetchone()
         conn.commit()
         return new_message

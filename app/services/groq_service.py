@@ -15,8 +15,8 @@ def get_reply(chat: list[str] ) -> str:
     
 
     response = client.chat.completions.create(
-        model=GROQ_MODEL,
+        model = GROQ_MODEL,
         messages=chat
     )
 
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content

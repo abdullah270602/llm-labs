@@ -13,7 +13,7 @@ class CreateChatRequest(BaseModel):
 class MessageResponse(BaseModel):
     message_id: int
     conversation_id: UUID
-    sender_role: str
+    role: str
     content: str
 
 # Response model for a chat including its messages

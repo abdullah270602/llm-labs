@@ -5,6 +5,7 @@ from app.database.connection import PostgresConnection
 import psycopg2.extras
 
 from app.routes.constant import ASSISTANT_ROLE, USER_ROLE
+from app.services.model_services import get_reply_from_model
 psycopg2.extras.register_uuid()
 from app.database.queries import (
     insert_chat,
@@ -47,17 +48,18 @@ async def create_chat(request: CreateChatRequest):
         )
         messages.append(MessageResponse(**user_message_record))
 
+        chat = [{"role": USER_ROLE, "content": request.initial_message},]
+        print("🐍 File: routes/chats.py | Line: 52 | undefined ~ chat_record",chat)
+        
         # Call LLM to generate a response
-        llm_response = call_llm(
+        llm_response = get_reply_from_model(
             model_id=request.model_id,
-            conversation_id=chat_record["conversation_id"],
-            message=request.initial_message,
-            context=[]
+            chat=chat
         )
 
         # Insert LLM response as assistant message
         model_response_record = insert_chat_message(
-            conn, chat_record["conversation_id"], MODEL_ROLE, llm_response
+            conn, chat_record["conversation_id"], ASSISTANT_ROLE, llm_response
         )
         messages.append(MessageResponse(**model_response_record))
 
@@ -76,8 +78,9 @@ async def create_message(request: CreateMessageRequest):
     with PostgresConnection() as conn:  # TODO replace with async connection
         
         # Retrieve conversation context to get model_id and existing messages
-        chat_context = select_chat_context_by_id(conn, request.conversation_id)
-        print("🐍 File: routes/chats.py | Line: 80 | undefined ~ chat_context",chat_context)
+        chat_record = select_chat_context_by_id(conn, request.conversation_id)
+        model_id = chat_record["model_id"]
+        chat = chat_record["messages"]
         
         # Insert user message
         user_message_record = insert_chat_message(
@@ -87,12 +90,12 @@ async def create_message(request: CreateMessageRequest):
         
         messages.append(MessageResponse(**user_message_record))
 
-
-        llm_response = call_llm(
-            model_id= chat_context["model_id"],
-            conversation_id=request.conversation_id,
-            message=request.content,
-            context=chat_context["messages"]
+        chat.append({"role": USER_ROLE, "content": request.content})
+        
+        # Call LLM to generate a response
+        llm_response = get_reply_from_model(
+            model_id=model_id,
+            chat=chat
         )
 
         # Insert LLM response as assistant message
