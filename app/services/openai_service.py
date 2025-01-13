@@ -16,4 +16,4 @@ def get_reply(chat: list[str] ) -> str:
         messages=chat
     )
 
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content
