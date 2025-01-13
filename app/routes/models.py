@@ -14,5 +14,6 @@ def list_models():
     """  List all available models. """
     with PostgresConnection() as conn:
         rows = get_all_models(conn)
-        models = [ModelInfo(model_id=row[0], model_name=row[1]) for row in rows]
+        models = [ModelInfo(**rows)for rows in rows]
+        print("🐍 File: routes/models.py | Line: 18 | list_models ~ models",models)
         return models
