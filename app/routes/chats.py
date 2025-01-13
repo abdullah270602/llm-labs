@@ -22,13 +22,7 @@ from app.schemas.chats import (
     MessageResponse,
 )
 
-router = APIRouter(prefix="/chats", tags=["chats"])
-
-
-def call_llm(model_id: UUID, conversation_id: UUID, message: str, context) -> str:
-    # Placeholder function to simulate LLM response.
-    # Replace this with actual logic to call your LLM service.
-    return f"Assumed LLM response (Testing)"
+router = APIRouter(prefix="api/chats", tags=["chats"])
 
 # TODO Add error handling
 

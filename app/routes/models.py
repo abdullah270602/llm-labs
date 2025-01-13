@@ -4,7 +4,7 @@ from app.database.queries import get_all_models
 from app.database.connection import PostgresConnection
 from app.schemas.models import ModelInfo
 
-router = APIRouter(prefix="/models", tags=["models"])
+router = APIRouter(prefix="api/models", tags=["models"])
 
 
 
