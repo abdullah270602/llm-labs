@@ -28,6 +28,6 @@ class CreateMessageRequest(BaseModel):
     conversation_id: UUID
     content: str
 
-class ConversationSummary(BaseModel):
+class ChatTitlesResponse(BaseModel):
     conversation_id: UUID
     title: str

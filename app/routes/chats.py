@@ -15,7 +15,7 @@ from app.database.queries import (
     select_user_chat_titles,
 )
 from app.schemas.chats import (
-    ConversationSummary,
+    ChatTitlesResponse,
     CreateChatRequest,
     CreateChatResponse,
     CreateMessageRequest,
@@ -112,7 +112,7 @@ async def get_chat_by(chat_id: UUID):
     return chat
         
         
-@router.get("/titles/{user_id}/", response_model=List[ConversationSummary])
+@router.get("/titles/{user_id}/", response_model=List[ChatTitlesResponse])
 async def get_user_chat_titles(
     user_id: UUID,
     limit: int = Query(10, ge=1, description="Number of results to return"),
@@ -124,7 +124,7 @@ async def get_user_chat_titles(
             conversations = []
             
         # Convert each row into a ConversationSummary model
-        conversations = [ConversationSummary(**row) for row in rows]
+        conversations = [ChatTitlesResponse(**row) for row in rows]
         
     return conversations
 
