@@ -117,3 +117,18 @@ def insert_chat_message(conn: PGConnection, chat_id: int, sender_role: str,  con
         new_message = cursor.fetchone()
         conn.commit()
         return new_message
+    
+
+def get_model_name_by_id(conn: PGConnection, model_id: UUID) -> str:
+    """
+    Retrieve the model name by its ID.
+    """
+    query = """
+    SELECT model_name
+    FROM models
+    WHERE model_id = %s;
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (model_id,))
+        result = cursor.fetchone()
+        return result['model_name'] if result else None
