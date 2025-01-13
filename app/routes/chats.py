@@ -22,7 +22,7 @@ from app.schemas.chats import (
     MessageResponse,
 )
 
-router = APIRouter(prefix="api/chats", tags=["chats"])
+router = APIRouter(prefix="/api/chats", tags=["chats"])
 
 # TODO Add error handling
 
