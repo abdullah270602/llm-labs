@@ -15,7 +15,8 @@ def get_chat_title(initial_message) -> str:
 
     response = client.chat.completions.create(
         model= "llama-3.3-70b-versatile", # TODO add to constants
-        messages= chat
+        messages= chat,
+        temperature= 0.0
     )
 
     title = response.choices[0].message.content.strip()
