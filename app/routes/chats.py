@@ -5,6 +5,7 @@ from app.database.connection import PostgresConnection
 import psycopg2.extras
 
 from app.routes.constant import ASSISTANT_ROLE, USER_ROLE
+from app.services.generate_title import get_chat_title
 from app.services.model_services import get_reply_from_model
 psycopg2.extras.register_uuid()
 from app.database.queries import (
@@ -28,10 +29,18 @@ router = APIRouter(prefix="/api/chats", tags=["chats"])
 
 @router.post("/", response_model=CreateChatResponse, status_code=201)
 async def create_chat(request: CreateChatRequest):
-    generated_title = "-- TESTING --"  # TODO  generate a title based on the chat content
+        
+    generated_title = get_chat_title(request.initial_message)
+    
+    chat = [{"role": USER_ROLE, "content": request.initial_message},]
+    # Call LLM to generate a response
+    llm_response = get_reply_from_model(
+        model_id=request.model_id,
+        chat=chat
+    )
 
-    with PostgresConnection() as conn: # TODO replace with async connection
-        # Create chat record
+    with PostgresConnection() as conn: # TODO replace with async connection        
+         # Insert chat record
         chat_record = insert_chat(conn, request.user_id, request.model_id, generated_title)
 
         messages = []
@@ -41,14 +50,6 @@ async def create_chat(request: CreateChatRequest):
             conn, chat_record["conversation_id"], USER_ROLE, request.initial_message 
         )
         messages.append(MessageResponse(**user_message_record))
-
-        chat = [{"role": USER_ROLE, "content": request.initial_message},]
-        
-        # Call LLM to generate a response
-        llm_response = get_reply_from_model(
-            model_id=request.model_id,
-            chat=chat
-        )
 
         # Insert LLM response as assistant message
         model_response_record = insert_chat_message(
@@ -60,7 +61,7 @@ async def create_chat(request: CreateChatRequest):
     chat_response = CreateChatResponse(
         conversation_id=chat_record["conversation_id"],
         model_id=chat_record["model_id"],
-        title=chat_record["title"],
+        title=generated_title,
         messages=messages
     )
     return chat_response
@@ -75,14 +76,6 @@ async def create_message(request: CreateMessageRequest):
         model_id = chat_record["model_id"]
         chat = chat_record["messages"]
         
-        # Insert user message
-        user_message_record = insert_chat_message(
-            conn, request.conversation_id, USER_ROLE, request.content
-        )
-        messages = []
-        
-        messages.append(MessageResponse(**user_message_record))
-
         chat.append({"role": USER_ROLE, "content": request.content})
         
         # Call LLM to generate a response
@@ -90,6 +83,15 @@ async def create_message(request: CreateMessageRequest):
             model_id=model_id,
             chat=chat
         )
+        
+        # FIXME Make this into one db call
+        # Insert user message
+        user_message_record = insert_chat_message(
+            conn, request.conversation_id, USER_ROLE, request.content 
+        )
+        messages = []
+        
+        messages.append(MessageResponse(**user_message_record))
 
         # Insert LLM response as assistant message
         model_response_record = insert_chat_message(
