@@ -103,20 +103,26 @@ def insert_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -
         return chat_id
 
 
-def insert_chat_message(conn: PGConnection, chat_id: int, role: str,  content: str) -> dict:
+def insert_chat_messages(conn: PGConnection, messages_data: list) -> list:
     """
-    Create a new message in a given chat, returning the inserted record.
+    Insert multiple messages into the messages table in a single query.
+    Each element in messages_data should be a tuple: (conversation_id, role, content)
+    Returns a list of inserted records.
     """
-    query = """
+    placeholders = ", ".join(["(%s, %s, %s)"] * len(messages_data))
+    query = f"""
     INSERT INTO messages (conversation_id, role, content)
-    VALUES ( %s, %s, %s)
+    VALUES {placeholders}
     RETURNING message_id, conversation_id, role, content;
     """
+    # Flatten the list of tuples into a single list of values for the SQL query
+    flattened_values = [value for message in messages_data for value in message]
+    
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-        cursor.execute(query, (chat_id, role, content))
-        new_message = cursor.fetchone()
+        cursor.execute(query, flattened_values)
+        new_messages = cursor.fetchall()
         conn.commit()
-        return new_message
+        return new_messages
     
 
 def get_model_name_and_service_by_id(conn: PGConnection, model_id: UUID) -> str:

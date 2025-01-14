@@ -10,7 +10,7 @@ from app.services.model_services import get_reply_from_model
 psycopg2.extras.register_uuid()
 from app.database.queries import (
     insert_chat,
-    insert_chat_message,
+    insert_chat_messages,
     select_chat_by_id,
     select_chat_context_by_id,
     select_user_chat_titles,
@@ -43,19 +43,16 @@ async def create_chat(request: CreateChatRequest):
          # Insert chat record
         chat_record = insert_chat(conn, request.user_id, request.model_id, generated_title)
 
-        messages = []
-
-        # Insert user initial message
-        user_message_record = insert_chat_message(
-            conn, chat_record["conversation_id"], USER_ROLE, request.initial_message 
-        )
-        messages.append(MessageResponse(**user_message_record))
-
-        # Insert LLM response as assistant message
-        model_response_record = insert_chat_message(
-            conn, chat_record["conversation_id"], ASSISTANT_ROLE, llm_response
-        )
-        messages.append(MessageResponse(**model_response_record))
+        # Prepare message data for both user and assistant
+        messages_data = [
+            (chat_record["conversation_id"], USER_ROLE, request.initial_message),
+            (chat_record["conversation_id"], ASSISTANT_ROLE, llm_response)
+        ]
+        
+        # Insert both messages in one query
+        inserted_messages = insert_chat_messages(conn, messages_data)
+        # Convert inserted messages to Pydantic models
+        messages = [MessageResponse(**msg) for msg in inserted_messages]
 
     # Construct and return response
     chat_response = CreateChatResponse(
@@ -84,21 +81,17 @@ async def create_message(request: CreateMessageRequest):
             chat=chat
         )
         
-        # FIXME Make this into one db call
-        # Insert user message
-        user_message_record = insert_chat_message(
-            conn, request.conversation_id, USER_ROLE, request.content 
-        )
-        messages = []
+        # Prepare message data for both user and assistant
+        messages_data = [
+            (request.conversation_id, USER_ROLE, request.content),
+            (request.conversation_id, ASSISTANT_ROLE, llm_response)
+        ]
         
-        messages.append(MessageResponse(**user_message_record))
-
-        # Insert LLM response as assistant message
-        model_response_record = insert_chat_message(
-            conn, request.conversation_id, ASSISTANT_ROLE, llm_response
-        )
-        messages.append(MessageResponse(**model_response_record))
-
+        # Insert both messages in one query
+        inserted_messages = insert_chat_messages(conn, messages_data)
+        
+        # Convert inserted messages to Pydantic models
+        messages = [MessageResponse(**msg) for msg in inserted_messages]
 
     return messages
 
