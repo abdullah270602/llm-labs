@@ -10,6 +10,7 @@ from app.services.generate_title import get_chat_title
 from app.services.model_services import get_reply_from_model
 psycopg2.extras.register_uuid()
 from app.database.queries import (
+    delete_chat_query,
     insert_chat,
     insert_chat_messages,
     select_chat_by_id,
@@ -175,3 +176,17 @@ async def update_chat_title(chat_id: UUID, request: UpdateChatTitleRequest):
         raise HTTPException(status_code=500, detail="Failed to update chat title")
 
     return response
+
+
+@router.delete("/{chat_id}/", status_code=204)
+async def delete_chat(chat_id: UUID):
+    try:
+        with PostgresConnection() as conn:
+            deleted= delete_chat_query(conn, chat_id)
+            if not deleted:
+                logger.info(f"Chat {chat_id} not found for deletion")
+                raise HTTPException(status_code=404, detail="Chat not found")
+
+    except Exception as e:
+        logger.error(f"Error deleting chat {chat_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete chat")

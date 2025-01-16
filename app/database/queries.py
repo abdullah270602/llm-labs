@@ -156,3 +156,18 @@ def update_chat_title_query(conn: PGConnection, chat_id: UUID, new_title: str) -
         updated_record = cursor.fetchone()
         conn.commit()
         return updated_record
+
+    
+def delete_chat_query(conn: PGConnection, chat_id: UUID) -> None:
+    """
+    Delete a chat conversation by its ID.
+    """
+    query = """
+    DELETE FROM conversations
+    WHERE conversation_id = %s
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (chat_id,))
+        conn.commit()
+        # Check how many rows were affected
+        return cursor.rowcount > 0
