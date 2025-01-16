@@ -1,11 +1,11 @@
-import os
 import logging
+import os
 import psycopg2
 from dotenv import load_dotenv
 from psycopg2.extensions import connection as PGConnection
 from typing import Optional
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class PostgresConnection:
     def __init__(
@@ -42,16 +42,16 @@ class PostgresConnection:
                     database=self._database,
                     sslmode="require",
                 )
-                logging.info("Connection established successfully.")
+                logger.info("Connection established successfully.")
             except psycopg2.Error as e:
-                logging.error(f"Error connecting to PostgreSQL: {e}")
+                logger.error(f"Error connecting to PostgreSQL: {e}")
                 raise
 
     def close_connection(self) -> None:
         if self._connection and not self._connection.closed:
             try:
                 self._connection.close()
-                logging.info("Connection closed successfully.")
+                logger.info("Connection closed successfully.")
             except psycopg2.Error as e:
-                logging.error(f"Error while closing the connection: {e}")
+                logger.error(f"Error while closing the connection: {e}")
                 raise
