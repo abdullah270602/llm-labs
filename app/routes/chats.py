@@ -15,6 +15,7 @@ from app.database.queries import (
     select_chat_by_id,
     select_chat_context_by_id,
     select_user_chat_titles,
+    update_chat_title_query,
 )
 from app.schemas.chats import (
     ChatTitlesResponse,
@@ -22,6 +23,8 @@ from app.schemas.chats import (
     CreateChatResponse,
     CreateMessageRequest,
     MessageResponse,
+    UpdateChatTitleRequest,
+    UpdateChatTitleResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -155,3 +158,20 @@ async def get_user_chat_titles(
         
     return conversations
 
+
+@router.put("/title/{chat_id}", response_model=UpdateChatTitleResponse, status_code=200)
+async def update_chat_title(chat_id: UUID, request: UpdateChatTitleRequest):
+    try:
+        with PostgresConnection() as conn:
+            updated_record = update_chat_title_query(conn, chat_id, request.new_title)
+            if not updated_record:
+                logger.info(f"Chat {chat_id} not found for title update")
+                raise HTTPException(status_code=404, detail="Chat not found")
+            
+        response = UpdateChatTitleResponse(**updated_record)
+
+    except Exception as e:
+        logger.error(f"Error updating chat title for {chat_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update chat title")
+
+    return response

@@ -31,3 +31,12 @@ class CreateMessageRequest(BaseModel):
 class ChatTitlesResponse(BaseModel):
     conversation_id: UUID
     title: str
+
+class UpdateChatTitleRequest(BaseModel):
+    new_title: str
+
+class UpdateChatTitleResponse(BaseModel):
+    conversation_id: UUID
+    model_id: UUID
+    userid: UUID
+    title: str

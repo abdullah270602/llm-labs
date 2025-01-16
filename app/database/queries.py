@@ -138,3 +138,21 @@ def get_model_name_and_service_by_id(conn: PGConnection, model_id: UUID) -> str:
         cursor.execute(query, (model_id,))
         result = cursor.fetchone()
         return result
+
+
+def update_chat_title_query(conn: PGConnection, chat_id: UUID, new_title: str) -> dict:
+    """
+    Update the title of a chat conversation by its ID.
+    Returns the updated record with conversation_id, model_id, userid, and new title.
+    """
+    query = """
+    UPDATE conversations
+    SET title = %s
+    WHERE conversation_id = %s
+    RETURNING conversation_id, model_id, userid, title;
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (new_title, chat_id))
+        updated_record = cursor.fetchone()
+        conn.commit()
+        return updated_record
