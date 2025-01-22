@@ -27,8 +27,6 @@ app.add_middleware(
 )
 
 
-app = FastAPI()
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logging.error(f"Unhandled exception: {exc}", exc_info=True)
