@@ -1,9 +1,9 @@
 import datetime
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 
-# Request model for creating a new chat (without requiring a title)
+# Request model for creating a new chat 
 class CreateChatRequest(BaseModel):
     user_id: UUID
     model_id: UUID
@@ -15,18 +15,19 @@ class MessageResponse(BaseModel):
     conversation_id: UUID
     role: str
     content: str
+    model_id: Optional[UUID] = None 
 
 # Response model for a chat including its messages
 class CreateChatResponse(BaseModel):
     conversation_id: UUID
-    model_id: UUID
+    current_model_id: UUID
     title: str
     messages: List[MessageResponse] = []
 
-# Request model for creating a new message in a chat
 class CreateMessageRequest(BaseModel):
     conversation_id: UUID
     content: str
+    model_id: Optional[UUID] = None  # NEW: user can override or specify a model
 
 class ChatTitlesResponse(BaseModel):
     conversation_id: UUID
