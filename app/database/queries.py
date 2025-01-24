@@ -79,7 +79,7 @@ def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset
     query = """
         SELECT conversation_id, title
         FROM conversations
-        WHERE userid = %s
+        WHERE user_id = %s
         ORDER BY created_at DESC
         LIMIT %s OFFSET %s;
         """
