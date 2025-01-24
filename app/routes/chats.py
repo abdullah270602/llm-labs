@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.database.connection import PostgresConnection
 import psycopg2.extras
 
-from app.routes.constant import ASSISTANT_ROLE, USER_ROLE
+from app.routes.constant import ASSISTANT_ROLE, DEFAULT_MODEL, USER_ROLE
 from app.services.generate_title import get_chat_title
 from app.services.model_services import get_reply_from_model
 psycopg2.extras.register_uuid()
@@ -43,9 +43,14 @@ async def create_chat(request: CreateChatRequest):
         generated_title = get_chat_title(request.initial_message)
         
         chat = [{"role": USER_ROLE, "content": request.initial_message},]
+        current_model = DEFAULT_MODEL
+        
+        if request.model_id:
+            current_model = request.model_id
+            
         # Call LLM to generate a response
         llm_response = get_reply_from_model(
-            model_id=request.model_id,
+            model_id=current_model,
             chat=chat
         )
     except Exception as e:
@@ -55,12 +60,12 @@ async def create_chat(request: CreateChatRequest):
     try:
         with PostgresConnection() as conn: # TODO replace with async connection        
             # Insert chat record
-            chat_record = insert_chat(conn, request.user_id, request.model_id, generated_title)
+            chat_record = insert_chat(conn, request.user_id, current_model, generated_title)
 
            # Prepare messages: user first, then assistant
             messages_data = [
                 (chat_record["conversation_id"], USER_ROLE, None, request.initial_message),
-                (chat_record["conversation_id"], ASSISTANT_ROLE, chat_record["current_model_id"], llm_response)
+                (chat_record["conversation_id"], ASSISTANT_ROLE, current_model, llm_response)
             ]
             
             # Insert both messages in one query
@@ -75,7 +80,7 @@ async def create_chat(request: CreateChatRequest):
     # Construct and return response
     chat_response = CreateChatResponse(
         conversation_id=chat_record["conversation_id"],
-        current_model_id=chat_record["current_model_id"],
+        current_model_id=current_model,
         title=generated_title,
         messages=messages
     )

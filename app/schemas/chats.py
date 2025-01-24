@@ -6,8 +6,8 @@ from pydantic import BaseModel
 # Request model for creating a new chat 
 class CreateChatRequest(BaseModel):
     user_id: UUID
-    model_id: UUID
-    initial_message: str  # Required initial user message
+    model_id: Optional[UUID] = None # selected model otherwise defaults to DEFAULT_MODEL
+    initial_message: str
 
 # Response model for a single message
 class MessageResponse(BaseModel):

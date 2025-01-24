@@ -1,3 +1,6 @@
 USER_ROLE = 'user'
 ASSISTANT_ROLE = 'assistant'
 SYSTEM_ROLE = 'system'
+
+# llama3-8b model
+DEFAULT_MODEL = '55555555-5555-5555-5555-555555555555'
