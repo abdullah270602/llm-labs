@@ -19,7 +19,7 @@ class PostgresConnection:
         load_dotenv()
         self._user = user or os.getenv("DB_USER")
         self._password = password or os.getenv("DB_PASSWORD")
-        self._host = host or os.getenv("DB_HOST")
+        self._host = host or os.getenv("BRANCH_DB_HOST")
         self._port = port or os.getenv("DB_PORT")
         self._database = database or os.getenv("DB_NAME")
         self._connection: Optional[PGConnection] = None

@@ -24,7 +24,7 @@ def select_chat_context_by_id(conn: PGConnection, chat_id: UUID) -> dict:
     """
     query = """
     SELECT
-        c.model_id,
+        c.current_model_id,
         json_agg(
           json_build_object(
             'role', m.role,
@@ -34,7 +34,7 @@ def select_chat_context_by_id(conn: PGConnection, chat_id: UUID) -> dict:
     FROM conversations c
     JOIN messages m ON c.conversation_id = m.conversation_id
     WHERE c.conversation_id = %s
-    GROUP BY c.model_id;
+    GROUP BY c.current_model_id;
     """
     # Use RealDictCursor for JSON output
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  
@@ -49,20 +49,21 @@ def select_chat_by_id(conn: PGConnection, chat_id: UUID) -> dict:
     """
     query = """
     SELECT
-        c.model_id,
+        c.current_model_id,
         c.conversation_id,
         c.created_at,
         c.updated_at,
         json_agg(
           json_build_object(
             'role', m.role,
+            'model_id', m.model_id,
             'content', m.content
           ) ORDER BY m.created_at, m.message_id
         ) AS messages
     FROM conversations c
     JOIN messages m ON c.conversation_id = m.conversation_id
     WHERE c.conversation_id = %s
-    GROUP BY c.model_id, c.conversation_id, c.created_at, c.updated_at;
+    GROUP BY c.current_model_id, c.conversation_id, c.created_at, c.updated_at;
     """
     # Use RealDictCursor for JSON output
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  
@@ -87,17 +88,17 @@ def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset
         return cursor.fetchall()
 
 
-def insert_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -> dict:
+def insert_chat(conn: PGConnection, user_id: UUID, current_model_id: UUID, title: str) -> dict:
     """
     Create a new chat and return the inserted record.
     """
     query = """
-    INSERT INTO conversations (userid, model_id, title)
+    INSERT INTO conversations (user_id, current_model_id, title)
     VALUES (%s, %s, %s)
-    RETURNING conversation_id, model_id, title;
+    RETURNING conversation_id, current_model_id, title;
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-        cursor.execute(query, (user_id, model_id, title))
+        cursor.execute(query, (user_id, current_model_id, title))
         chat_id = cursor.fetchone()
         conn.commit()
         return chat_id
@@ -106,14 +107,14 @@ def insert_chat(conn: PGConnection, user_id: UUID, model_id: UUID, title: str) -
 def insert_chat_messages(conn: PGConnection, messages_data: list) -> list:
     """
     Insert multiple messages into the messages table in a single query.
-    Each element in messages_data should be a tuple: (conversation_id, role, content)
+    Each element in messages_data should be a tuple: (conversation_id, role, model_id, content)
     Returns a list of inserted records.
     """
-    placeholders = ", ".join(["(%s, %s, %s)"] * len(messages_data))
+    placeholders = ", ".join(["(%s, %s, %s, %s)"] * len(messages_data))
     query = f"""
-    INSERT INTO messages (conversation_id, role, content)
+    INSERT INTO messages (conversation_id, role, model_id, content)
     VALUES {placeholders}
-    RETURNING message_id, conversation_id, role, content;
+    RETURNING message_id, conversation_id, role, model_id, content;
     """
     # Flatten the list of tuples into a single list of values for the SQL query
     flattened_values = [value for message in messages_data for value in message]
@@ -171,3 +172,20 @@ def delete_chat_query(conn: PGConnection, chat_id: UUID) -> None:
         conn.commit()
         # Check how many rows were affected
         return cursor.rowcount > 0
+
+
+def update_conversation_model(conn: PGConnection, chat_id: UUID, model_id: UUID) -> dict:
+    """
+    Update the current model for a chat conversation.
+    """
+    query = """
+    UPDATE conversations
+    SET current_model_id = %s
+    WHERE conversation_id = %s
+    RETURNING conversation_id, current_model_id;
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (model_id, chat_id))
+        updated_record = cursor.fetchone()
+        conn.commit()
+        return updated_record

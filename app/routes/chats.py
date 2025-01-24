@@ -17,6 +17,7 @@ from app.database.queries import (
     select_chat_context_by_id,
     select_user_chat_titles,
     update_chat_title_query,
+    update_conversation_model,
 )
 from app.schemas.chats import (
     ChatTitlesResponse,
@@ -48,7 +49,7 @@ async def create_chat(request: CreateChatRequest):
             chat=chat
         )
     except Exception as e:
-        logger.error(f"Error during LLM call or title generation: {e}", exc_info=True)
+        logger.error(f"Error during LLM call for title generation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate chat response")
 
     try:
@@ -56,10 +57,10 @@ async def create_chat(request: CreateChatRequest):
             # Insert chat record
             chat_record = insert_chat(conn, request.user_id, request.model_id, generated_title)
 
-            # Prepare message data for both user and assistant
+           # Prepare messages: user first, then assistant
             messages_data = [
-                (chat_record["conversation_id"], USER_ROLE, request.initial_message),
-                (chat_record["conversation_id"], ASSISTANT_ROLE, llm_response)
+                (chat_record["conversation_id"], USER_ROLE, None, request.initial_message),
+                (chat_record["conversation_id"], ASSISTANT_ROLE, chat_record["current_model_id"], llm_response)
             ]
             
             # Insert both messages in one query
@@ -74,10 +75,11 @@ async def create_chat(request: CreateChatRequest):
     # Construct and return response
     chat_response = CreateChatResponse(
         conversation_id=chat_record["conversation_id"],
-        model_id=chat_record["model_id"],
+        current_model_id=chat_record["current_model_id"],
         title=generated_title,
         messages=messages
     )
+    
     return chat_response
 
 
@@ -92,20 +94,28 @@ async def create_message(request: CreateMessageRequest):
                     logger.info(f"Chat context for conversation_id {request.conversation_id} not found.")
                     raise HTTPException(status_code=404, detail="Conversation not found")
 
-            model_id = chat_record["model_id"]
-            chat = chat_record["messages"]
-            chat.append({"role": USER_ROLE, "content": request.content})
+            current_model = chat_record["current_model_id"]
+            chat_history = chat_record["messages"]
+            chat_history.append({"role": USER_ROLE, "content": request.content})
+            
+            # If the request has a new model_id, switch conversation's current_model_id
+            # Otherwise, we keep using the existing one.
+            if request.model_id and request.model_id != current_model:
+                # Update DB so this model becomes the new default
+                update_conversation_model(conn, request.conversation_id, request.model_id)
+                current_model = request.model_id
+                logger.info(f"Switched conversation {request.conversation_id} to model {current_model}")
             
             # Call LLM to generate a response
             llm_response = get_reply_from_model(
-                model_id=model_id,
-                chat=chat
+                model_id=current_model,
+                chat=chat_history
             )
             
-            # Prepare message data for both user and assistant
+            # Prepare messages: user first, then assistant
             messages_data = [
-                (request.conversation_id, USER_ROLE, request.content),
-                (request.conversation_id, ASSISTANT_ROLE, llm_response)
+                (request.conversation_id, USER_ROLE, None, request.content),
+                (request.conversation_id, ASSISTANT_ROLE, current_model, llm_response)
             ]
             
             # Insert both messages in one query
