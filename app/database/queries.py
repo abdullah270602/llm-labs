@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from uuid import UUID
 from psycopg2.extensions import connection as PGConnection
 import psycopg2.extras
@@ -72,7 +73,7 @@ def select_chat_by_id(conn: PGConnection, chat_id: UUID) -> dict:
         return records
 
 
-def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset) -> list:
+def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset) -> list: # NOt being used
     """
     List all chat IDs and titles for a given user.
     """
@@ -150,7 +151,7 @@ def update_chat_title_query(conn: PGConnection, chat_id: UUID, new_title: str) -
     UPDATE conversations
     SET title = %s
     WHERE conversation_id = %s
-    RETURNING conversation_id, model_id, userid, title;
+    RETURNING conversation_id, title;
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, (new_title, chat_id))
@@ -189,3 +190,65 @@ def update_conversation_model(conn: PGConnection, chat_id: UUID, model_id: UUID)
         updated_record = cursor.fetchone()
         conn.commit()
         return updated_record
+    
+    
+def select_user_chat_titles_and_count_single_row(conn, user_id: int, limit: int, offset: int) -> Dict[str, Any]:
+    """
+    Returns one dictionary with:
+      {
+        "total_count": <int>,
+        "conversations": [
+            { "conversation_id": <uuid>, "title": <str> },
+            ...
+        ]
+      }
+    """
+    query = """
+    WITH total AS (
+        SELECT COUNT(*)::int AS total_count
+        FROM conversations
+        WHERE user_id = %s
+    ),
+    paged AS (
+        SELECT
+            conversation_id,
+            title
+        FROM conversations
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+        LIMIT %s
+        OFFSET %s
+    )
+    SELECT
+        total.total_count,
+        COALESCE(
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'conversation_id', paged.conversation_id,
+                    'title', paged.title
+                )
+                ORDER BY paged.conversation_id
+            ), '[]'::json
+        ) AS conversations
+    FROM total
+    CROSS JOIN paged
+    GROUP BY total.total_count;
+    """
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        cursor.execute(query, (user_id, user_id, limit, offset))
+        row = cursor.fetchone()  # Could be None if user has zero conversations or offset out of range
+
+        if not row:
+            # If there are no rows, user might have zero conversations
+            # or the offset is out of range. We'll handle that gracefully.
+            return {
+                "total_count": 0,
+                "conversations": []
+            }
+
+        return {
+            "total_count": row["total_count"],
+            # row["conversations"] is a JSON array => RealDictCursor returns it as a Python list
+            "conversations": row["conversations"] or []
+        }

@@ -29,7 +29,7 @@ class CreateMessageRequest(BaseModel):
     content: str
     model_id: Optional[UUID] = None  # NEW: user can override or specify a model
 
-class ChatTitlesResponse(BaseModel):
+class ChatTitlesResponse(BaseModel): # not being used
     conversation_id: UUID
     title: str
 
@@ -38,6 +38,12 @@ class UpdateChatTitleRequest(BaseModel):
 
 class UpdateChatTitleResponse(BaseModel):
     conversation_id: UUID
-    model_id: UUID
-    userid: UUID
     title: str
+    
+class ChatTitles(BaseModel):
+    conversation_id: UUID
+    title: str
+
+class PaginatedChatResponse(BaseModel):
+    total_count: int
+    conversations: List[ChatTitles]

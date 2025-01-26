@@ -16,6 +16,7 @@ from app.database.queries import (
     select_chat_by_id,
     select_chat_context_by_id,
     select_user_chat_titles,
+    select_user_chat_titles_and_count_single_row,
     update_chat_title_query,
     update_conversation_model,
 )
@@ -25,6 +26,7 @@ from app.schemas.chats import (
     CreateChatResponse,
     CreateMessageRequest,
     MessageResponse,
+    PaginatedChatResponse,
     UpdateChatTitleRequest,
     UpdateChatTitleResponse,
 )
@@ -205,3 +207,29 @@ async def delete_chat(chat_id: UUID):
     except Exception as e:
         logger.error(f"Error deleting chat {chat_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete chat")
+
+
+# @router.get("/chats", response_model=PaginatedChatResponse)
+# async def get_user_chats(
+#     user_id: int,
+#     limit: int = Query(default=10, ge=1),
+#     offset: int = Query(default=0, ge=0)
+# ):
+#     """
+#     Return paginated conversations for a given user, 
+#     along with the total_count in the same response.
+#     """
+#     try:
+#         # Using a context manager for a synchronous DB connection
+#         with PostgresConnection() as conn:  
+#             result = select_user_chat_titles_and_count_single_row(conn, user_id, limit, offset)
+#     except Exception as e:
+#         logger.error(f"DB error fetching chats for user {user_id}: {e}", exc_info=True)
+#         raise HTTPException(status_code=500, detail="Could not fetch user chats")
+
+#     # Build the Pydantic response object
+#     response_data = PaginatedChatResponse(
+#         total_count=result["total_count"],
+#         conversations=result["conversations"]
+#     )
+#     return response_data
