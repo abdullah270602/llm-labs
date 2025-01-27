@@ -12,7 +12,7 @@ def get_chat_title(initial_message) -> str:
     Generate chat title based on the initial message.
     """
     try:
-        client = get_client_for_service("groq") # TODO add to constants
+        client = get_client_for_service("openai") # TODO add to constants
         chat = [
             {"role": SYSTEM_ROLE, "content": CHAT_TITLE_PROMPT},
             {"role": USER_ROLE, "content": initial_message},
@@ -24,7 +24,7 @@ def get_chat_title(initial_message) -> str:
 
     try:
         response = client.chat.completions.create(
-            model= "llama-3.3-70b-versatile", # TODO add to constants
+            model= "gpt-4o-mini", # TODO add to constants
             messages= chat,
             temperature= 0.0
         )
@@ -37,7 +37,7 @@ def get_chat_title(initial_message) -> str:
         title = response.choices[0].message.content.strip()
         logger.info(f"Generated title: {title}")
         
-        if len(title.split()) > 8:
+        if len(title.split()) > 8: # For now, we are limiting the title to 8 words (db limit 100 chars)
             logger.warning(f"Generated title is unusually long: {title}")
             title = "-- LONG TITLE ERROR --" # TODO Handle this in a better way
         
