@@ -153,29 +153,6 @@ async def get_chat_by(chat_id: UUID):
         
     return chat
         
-        
-@router.get("/titles/{user_id}/", response_model=List[ChatTitlesResponse])
-async def get_user_chat_titles(
-    user_id: UUID,
-    limit: int = Query(10, ge=1, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
-):
-    try:
-        with PostgresConnection() as conn:
-            rows = select_user_chat_titles(conn, user_id, limit, offset)
-    except Exception as e:
-        logger.error(f"Database error when retrieving chat titles for user {user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve chat titles from database")
-    
-    if not rows:
-        logger.info(f"No chat titles found for user {user_id}")
-        conversations = []
-            
-        # Convert each row into a ChatTitlesResponse model
-    conversations = [ChatTitlesResponse(**row) for row in rows]
-        
-    return conversations
-
 
 @router.put("/title/{chat_id}", response_model=UpdateChatTitleResponse, status_code=200)
 async def update_chat_title(chat_id: UUID, request: UpdateChatTitleRequest):
@@ -209,27 +186,27 @@ async def delete_chat(chat_id: UUID):
         raise HTTPException(status_code=500, detail="Failed to delete chat")
 
 
-# @router.get("/chats", response_model=PaginatedChatResponse)
-# async def get_user_chats(
-#     user_id: int,
-#     limit: int = Query(default=10, ge=1),
-#     offset: int = Query(default=0, ge=0)
-# ):
-#     """
-#     Return paginated conversations for a given user, 
-#     along with the total_count in the same response.
-#     """
-#     try:
-#         # Using a context manager for a synchronous DB connection
-#         with PostgresConnection() as conn:  
-#             result = select_user_chat_titles_and_count_single_row(conn, user_id, limit, offset)
-#     except Exception as e:
-#         logger.error(f"DB error fetching chats for user {user_id}: {e}", exc_info=True)
-#         raise HTTPException(status_code=500, detail="Could not fetch user chats")
+@router.get("/titles/{user_id}/", response_model=PaginatedChatResponse)
+async def get_user_chats(
+    user_id: UUID,
+    limit: int = Query(default=10, ge=1),
+    offset: int = Query(default=0, ge=0)
+):
+    """
+    Return paginated conversations for a given user, 
+    along with the total_count in the same response.
+    """
+    try:
+        # Using a context manager for a synchronous DB connection
+        with PostgresConnection() as conn:  
+            result = select_user_chat_titles_and_count_single_row(conn, user_id, limit, offset)
+    except Exception as e:
+        logger.error(f"DB error fetching chats for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch user chats")
 
-#     # Build the Pydantic response object
-#     response_data = PaginatedChatResponse(
-#         total_count=result["total_count"],
-#         conversations=result["conversations"]
-#     )
-#     return response_data
+    # Build the Pydantic response object
+    response_data = PaginatedChatResponse(
+        total_count=result["total_count"],
+        conversations=result["conversations"]
+    )
+    return response_data
