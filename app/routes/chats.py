@@ -1,7 +1,7 @@
 import logging
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from app.database.connection import PostgresConnection
 import psycopg2.extras
 
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chats", tags=["chats"])
 
 
-@router.post("/", response_model=CreateChatResponse, status_code=201)
+@router.post("/", response_model=CreateChatResponse, status_code=status.HTTP_201_CREATED, description="Creates a new chat")
 async def create_chat(request: CreateChatRequest):
     
     try:
@@ -90,7 +90,7 @@ async def create_chat(request: CreateChatRequest):
     return chat_response
 
 
-@router.post("/message/", response_model=List[MessageResponse], status_code=201)
+@router.post("/message/", response_model=List[MessageResponse], status_code=status.HTTP_201_CREATED, description="Creates a new message in a chat")
 async def create_message(request: CreateMessageRequest):
     try:
         with PostgresConnection() as conn:  # TODO replace with async connection
@@ -138,7 +138,7 @@ async def create_message(request: CreateMessageRequest):
     return messages
 
 
-@router.get("/{chat_id}/",status_code=200)
+@router.get("/{chat_id}/",status_code=status.HTTP_200_OK, description="Get whole chat by ID")
 async def get_chat_by(chat_id: UUID):
     try:
         with PostgresConnection() as conn:
@@ -154,7 +154,7 @@ async def get_chat_by(chat_id: UUID):
     return chat
         
 
-@router.put("/title/{chat_id}", response_model=UpdateChatTitleResponse, status_code=200)
+@router.put("/title/{chat_id}", response_model=UpdateChatTitleResponse, status_code=status.HTTP_200_OK, description="Update chat title")
 async def update_chat_title(chat_id: UUID, request: UpdateChatTitleRequest):
     try:
         with PostgresConnection() as conn:
@@ -172,7 +172,7 @@ async def update_chat_title(chat_id: UUID, request: UpdateChatTitleRequest):
     return response
 
 
-@router.delete("/{chat_id}/", status_code=204)
+@router.delete("/{chat_id}/", status_code=status.HTTP_204_NO_CONTENT, description="Delete chat by ID")
 async def delete_chat(chat_id: UUID):
     try:
         with PostgresConnection() as conn:
@@ -186,7 +186,7 @@ async def delete_chat(chat_id: UUID):
         raise HTTPException(status_code=500, detail="Failed to delete chat")
 
 
-@router.get("/titles/{user_id}/", response_model=PaginatedChatResponse)
+@router.get("/titles/{user_id}/", response_model=PaginatedChatResponse, status_code=status.HTTP_200_OK, description="Get chat titles for a user")
 async def get_user_chats(
     user_id: UUID,
     limit: int = Query(default=10, ge=1),
