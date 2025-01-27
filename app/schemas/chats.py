@@ -1,7 +1,7 @@
 import datetime
 from uuid import UUID
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Request model for creating a new chat 
 class CreateChatRequest(BaseModel):
@@ -34,7 +34,7 @@ class ChatTitlesResponse(BaseModel): # not being used
     title: str
 
 class UpdateChatTitleRequest(BaseModel):
-    new_title: str
+    new_title: str = Field(..., min_length=1, max_length=100)
 
 class UpdateChatTitleResponse(BaseModel):
     conversation_id: UUID
