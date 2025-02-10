@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from app.constants import ALLOWED_ORIGINS
 from app.routes.chats import router as chat_router
 from app.routes.models import router as model_router
+from app.routes.workspaces import router as workspaces_router
 from dotenv import load_dotenv
 
 
@@ -15,7 +16,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-load_dotenv()
+load_dotenv(override=True)
 app = FastAPI()
 
 app.add_middleware(
@@ -42,3 +43,4 @@ def read_root():
 
 app.include_router(model_router)
 app.include_router(chat_router)
+app.include_router(workspaces_router)

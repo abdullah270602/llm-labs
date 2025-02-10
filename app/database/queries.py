@@ -1,7 +1,9 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID
 from psycopg2.extensions import connection as PGConnection
 import psycopg2.extras
+
+from app.custom_exceptions import WorkspaceLimitExceeded
 
 
 def get_all_models(conn: PGConnection) -> list:
@@ -192,7 +194,7 @@ def update_conversation_model(conn: PGConnection, chat_id: UUID, model_id: UUID)
         return updated_record
     
     
-def select_user_chat_titles_and_count_single_row(conn, user_id: int, limit: int, offset: int) -> Dict[str, Any]:
+def select_user_chat_titles_and_count_single_row(conn: PGConnection, user_id: int, limit: int, offset: int) -> Dict[str, Any]:
     """
     Returns one dictionary with:
       {
@@ -252,3 +254,209 @@ def select_user_chat_titles_and_count_single_row(conn, user_id: int, limit: int,
             # row["conversations"] is a JSON array => RealDictCursor returns it as a Python list
             "conversations": row["conversations"] or []
         }
+
+
+def get_user_workspace_count(conn: PGConnection, user_id: UUID) -> int:
+    """
+    Get the number of workspaces a user currently has.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        user_id (UUID): ID of the user
+        
+    Returns:
+        int: Number of workspaces owned by the user
+    """
+    query = """
+    SELECT COUNT(*)
+    FROM workspaces
+    WHERE user_id = %s;
+    """
+    
+    with conn.cursor() as cursor:
+        cursor.execute(query, (user_id,))
+        return cursor.fetchone()[0]
+
+
+def create_workspace_query(conn: PGConnection, user_id: UUID, name: str, description: str = None) -> Dict[str, Any]:
+    """
+    Create a new workspace and return the inserted record.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        user_id (UUID): ID of the user creating the workspace
+        name (str): Name of the workspace
+        description (str, optional): Description of the workspace
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing the created workspace details
+    """
+    current_count = get_user_workspace_count(conn, user_id)
+    if current_count >= 5:
+        raise WorkspaceLimitExceeded()
+    
+    query = """
+    INSERT INTO workspaces (
+        user_id,
+        name,
+        description
+    )
+    VALUES (
+        %s,
+        %s,
+        %s
+    )
+    RETURNING 
+        workspace_id,
+        user_id,
+        name,
+        description,
+        created_at
+    """
+    
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (user_id, name, description))
+        workspace = cursor.fetchone()
+        conn.commit()
+        return workspace
+
+
+def delete_workspace_query(conn:PGConnection, workspace_id: UUID) -> None:
+    """
+    Delete a workspace by its ID.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        workspace_id (UUID): ID of the workspace to delete
+    """
+    query = """
+    DELETE FROM workspaces
+    WHERE workspace_id = %s
+    """
+    
+    with conn.cursor() as cursor:
+        cursor.execute(query, (workspace_id,))
+        conn.commit()
+        # Check how many rows were affected
+        return cursor.rowcount > 0
+
+
+def add_chat_to_workspace_query(conn: PGConnection, workspace_id: UUID, chat_id: UUID) -> Dict[str, Any]:
+    """
+    Updates a conversation to associate it with a workspace.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        workspace_id (UUID): ID of the workspace
+        chat_id (UUID): ID of the chat/conversation to update
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing the updated conversation details
+    """
+    query = """
+    UPDATE conversations
+    SET 
+        workspace_id = %s
+    WHERE conversation_id = %s
+    RETURNING 
+        conversation_id,
+        workspace_id;
+    """
+    
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (workspace_id, chat_id))
+        result = cursor.fetchone()
+        conn.commit()
+        return result
+    
+    
+def remove_chat_from_workspace_query(conn: PGConnection, chat_id: UUID) -> bool:
+    """
+    Removes a chat from its workspace by setting workspace_id to NULL.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        chat_id (UUID): ID of the chat/conversation to update
+        
+    Returns:
+        bool: True if chat was updated, False if not found
+    """
+    query = """
+    UPDATE conversations
+    SET 
+        workspace_id = NULL
+    WHERE conversation_id = %s
+    """
+    
+    with conn.cursor() as cursor:
+        cursor.execute(query, (chat_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    
+
+def get_workspace_contents_query(conn: PGConnection, workspace_id: UUID) -> Optional[Dict[str, Any]]:
+    """
+    Retrieves complete workspace contents including chats and folders.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        workspace_id (UUID): ID of the workspace
+        
+    Returns:
+        Optional[Dict[str, Any]]: Complete workspace data if found, None if workspace doesn't exist
+    """
+    query = """
+    WITH workspace_data AS (
+        SELECT 
+            w.workspace_id,
+            w.name,
+            w.description,
+            w.created_at,
+            w.updated_at
+        FROM workspaces w
+        WHERE w.workspace_id = %s
+    ),
+    workspace_chats AS (
+        SELECT 
+            c.conversation_id,
+            c.title,
+            c.created_at,
+            c.updated_at,
+            c.current_model_id
+        FROM conversations c
+        WHERE c.workspace_id = %s
+        ORDER BY c.created_at DESC
+    )
+    SELECT 
+        wd.*,
+        COALESCE(
+            jsonb_agg(
+                jsonb_build_object(
+                    'conversation_id', wc.conversation_id,
+                    'title', wc.title,
+                    'created_at', wc.created_at,
+                    'updated_at', wc.updated_at,
+                    'current_model_id', wc.current_model_id
+                )
+            ) FILTER (WHERE wc.conversation_id IS NOT NULL),
+            '[]'
+        ) as chats
+    FROM workspace_data wd
+    LEFT JOIN workspace_chats wc ON true
+    GROUP BY 
+        wd.workspace_id,
+        wd.name,
+        wd.description,
+        wd.created_at,
+        wd.updated_at;
+    """
+    
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        cursor.execute(query, (workspace_id, workspace_id))
+        result = cursor.fetchone()
+        
+        if result:
+            # Add empty folders list for now
+            result['folders'] = []
+            
+        return result
