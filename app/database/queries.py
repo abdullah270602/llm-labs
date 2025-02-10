@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from psycopg2.extensions import connection as PGConnection
 import psycopg2.extras
@@ -460,3 +460,29 @@ def get_workspace_contents_query(conn: PGConnection, workspace_id: UUID) -> Opti
             result['folders'] = []
             
         return result
+    
+    
+def get_user_workspaces_query(conn: PGConnection, user_id: UUID) -> List[Dict[str, Any]]:
+    """
+    Get all workspaces (id and title only) for a user.
+    
+    Args:
+        conn (PGConnection): PostgreSQL database connection
+        user_id (UUID): ID of the user
+        
+    Returns:
+        List[Dict[str, Any]]: List of workspace summaries
+    """
+    query = """
+    SELECT 
+        workspace_id,
+        name,
+        created_at
+    FROM workspaces 
+    WHERE user_id = %s
+    ORDER BY created_at DESC;
+    """
+    
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (user_id,))
+        return [dict(row) for row in cursor.fetchall()]

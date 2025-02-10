@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.custom_exceptions import WorkspaceLimitExceeded
 from app.database.connection import PostgresConnection
-from app.database.queries import add_chat_to_workspace_query, create_workspace_query, delete_workspace_query, get_workspace_contents_query, remove_chat_from_workspace_query
-from app.schemas.workspaces import AddChatToWorkspaceRequest, AddChatToWorkspaceResponse, CreateWorkspaceRequest, WorkspaceContents, WorkspaceResponse
+from app.database.queries import add_chat_to_workspace_query, create_workspace_query, delete_workspace_query, get_user_workspaces_query, get_workspace_contents_query, remove_chat_from_workspace_query
+from app.schemas.workspaces import AddChatToWorkspaceRequest, AddChatToWorkspaceResponse, CreateWorkspaceRequest, UserWorkspacesResponse, WorkspaceContents, WorkspaceResponse
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,25 @@ async def create_workspace(request: CreateWorkspaceRequest):
         raise HTTPException(status_code=500, detail='Failed to create workspace')
     
     return WorkspaceResponse(**workspace)
-    
+
+
+@router.get(
+    "/user/{user_id}",
+    response_model=UserWorkspacesResponse,
+    description="Get all workspaces for a user"
+)
+async def get_user_workspaces(user_id: UUID):
+    try:
+        with PostgresConnection() as conn:
+            workspaces = get_user_workspaces_query(conn, user_id)
+        return UserWorkspacesResponse(workspaces=workspaces)
+            
+    except Exception as e:
+        logger.error(f"Error retrieving user workspaces: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve workspaces"
+        )
 
 @router.delete(
     '/{workspace_id}', 
@@ -135,3 +153,4 @@ async def get_workspace_contents(workspace_id: UUID):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve workspace contents"
         )
+        

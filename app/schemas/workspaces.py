@@ -46,5 +46,14 @@ class WorkspaceContents(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: datetime
-    chats: List[WorkspaceChat] = []  # Default empty list until implemented
+    chats: List[WorkspaceChat] = []  # Default empty list
     folders: List[WorkspaceFolder] = []  # Default empty list until implemented
+
+
+class Workspace(BaseModel):
+    workspace_id: UUID
+    name: str
+    created_at: datetime
+
+class UserWorkspacesResponse(BaseModel):
+    workspaces: List[Workspace]
