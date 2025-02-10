@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -57,3 +58,14 @@ class Workspace(BaseModel):
 
 class UserWorkspacesResponse(BaseModel):
     workspaces: List[Workspace]
+    
+
+class DeletionMode(str, Enum):
+    ARCHIVE = "archive"     # Move contents to global space (default)
+    PERMANENT = "permanent" # Delete everything
+
+class DeleteWorkspaceRequest(BaseModel):
+    mode: Optional[DeletionMode] = Field(
+        default=DeletionMode.ARCHIVE,
+        description="Defaults to 'archive' which moves contents to global space. Use 'permanent' to delete all contents."
+    )

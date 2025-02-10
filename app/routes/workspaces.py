@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.custom_exceptions import WorkspaceLimitExceeded
 from app.database.connection import PostgresConnection
 from app.database.queries import add_chat_to_workspace_query, create_workspace_query, delete_workspace_query, get_user_workspaces_query, get_workspace_contents_query, remove_chat_from_workspace_query
-from app.schemas.workspaces import AddChatToWorkspaceRequest, AddChatToWorkspaceResponse, CreateWorkspaceRequest, UserWorkspacesResponse, WorkspaceContents, WorkspaceResponse
+from app.schemas.workspaces import AddChatToWorkspaceRequest, AddChatToWorkspaceResponse, CreateWorkspaceRequest, DeleteWorkspaceRequest, UserWorkspacesResponse, WorkspaceContents, WorkspaceResponse
 
 
 logger = logging.getLogger(__name__)
@@ -53,23 +53,36 @@ async def get_user_workspaces(user_id: UUID):
         )
 
 @router.delete(
-    '/{workspace_id}', 
-    status_code=status.HTTP_204_NO_CONTENT, 
-    description='Deletes a workspace'
+    '/{workspace_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    description='Delete a workspace. By default, contents are moved to global space. Set mode=permanent to delete all contents.'
 )
-async def delete_workspace(workspace_id: UUID):
+async def delete_workspace(
+    workspace_id: UUID,
+    request: DeleteWorkspaceRequest
+):
     try:
         with PostgresConnection() as conn:
-            deleted = delete_workspace_query(conn, workspace_id)
-        
-        if not deleted:
-            raise HTTPException(status_code=404, detail='Workspace not found')
-        
+            workspace_existed = delete_workspace_query(
+                conn, 
+                workspace_id, 
+                request.mode
+            )
+            
+        if not workspace_existed:
+            raise HTTPException(
+                status_code=404,
+                detail='Workspace not found'
+            )
+            
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f'Error deleting workspace: {e}')
-        raise HTTPException(status_code=500, detail='Failed to delete workspace')
+        raise HTTPException(
+            status_code=500,
+            detail='Failed to delete workspace'
+        )
 
 
 @router.post(

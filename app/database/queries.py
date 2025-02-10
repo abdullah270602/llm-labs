@@ -4,6 +4,7 @@ from psycopg2.extensions import connection as PGConnection
 import psycopg2.extras
 
 from app.custom_exceptions import WorkspaceLimitExceeded
+from app.schemas.workspaces import DeletionMode
 
 
 def get_all_models(conn: PGConnection) -> list:
@@ -321,24 +322,60 @@ def create_workspace_query(conn: PGConnection, user_id: UUID, name: str, descrip
         return workspace
 
 
-def delete_workspace_query(conn:PGConnection, workspace_id: UUID) -> None:
+
+def delete_workspace_query(
+    conn: PGConnection, 
+    workspace_id: UUID, 
+    mode: DeletionMode = DeletionMode.ARCHIVE
+) -> bool:
     """
-    Delete a workspace by its ID.
+    Delete a workspace with specified deletion mode.
     
     Args:
-        conn (PGConnection): PostgreSQL database connection
-        workspace_id (UUID): ID of the workspace to delete
+        conn: PostgreSQL database connection
+        workspace_id: ID of the workspace to delete
+        mode: DeletionMode specifying how to handle workspace contents.
+             Defaults to ARCHIVE which preserves contents in global space.
+    
+    Returns:
+        bool: True if workspace was found and deleted
     """
-    query = """
-    DELETE FROM workspaces
-    WHERE workspace_id = %s
+    # SQL queries
+    archive_contents_query = """
+        UPDATE conversations 
+        SET workspace_id = NULL
+        WHERE workspace_id = %s
     """
     
-    with conn.cursor() as cursor:
-        cursor.execute(query, (workspace_id,))
-        conn.commit()
-        # Check how many rows were affected
-        return cursor.rowcount > 0
+    delete_contents_query = """
+        DELETE FROM conversations
+        WHERE workspace_id = %s
+    """
+    
+    delete_workspace_query = """
+        DELETE FROM workspaces
+        WHERE workspace_id = %s
+    """
+    
+    try:
+        with conn.cursor() as cursor:
+            if mode == DeletionMode.ARCHIVE:
+                # Move contents to global space first
+                cursor.execute(archive_contents_query, (workspace_id,))
+            else:  # PERMANENT deletion
+                # Delete all contents first
+                cursor.execute(delete_contents_query, (workspace_id,))
+                
+            # Then delete the workspace
+            cursor.execute(delete_workspace_query, (workspace_id,))
+            rows_affected = cursor.rowcount
+            conn.commit()
+            
+            return rows_affected > 0
+            
+    except Exception as e:
+        conn.rollback()
+        raise e
 
 
 def add_chat_to_workspace_query(conn: PGConnection, workspace_id: UUID, chat_id: UUID) -> Dict[str, Any]:
