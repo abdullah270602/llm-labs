@@ -390,61 +390,6 @@ def delete_workspace_query(
         raise e
 
 
-def add_chat_to_workspace_query(
-    conn: PGConnection, workspace_id: UUID, chat_id: UUID
-) -> Dict[str, Any]:
-    """
-    Updates a conversation to associate it with a workspace.
-
-    Args:
-        conn (PGConnection): PostgreSQL database connection
-        workspace_id (UUID): ID of the workspace
-        chat_id (UUID): ID of the chat/conversation to update
-
-    Returns:
-        Dict[str, Any]: Dictionary containing the updated conversation details
-    """
-    query = """
-    UPDATE conversations
-    SET 
-        workspace_id = %s
-    WHERE conversation_id = %s
-    RETURNING 
-        conversation_id,
-        workspace_id;
-    """
-
-    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-        cursor.execute(query, (workspace_id, chat_id))
-        result = cursor.fetchone()
-        conn.commit()
-        return result
-
-
-def remove_chat_from_workspace_query(conn: PGConnection, chat_id: UUID) -> bool:
-    """
-    Removes a chat from its workspace by setting workspace_id to NULL.
-
-    Args:
-        conn (PGConnection): PostgreSQL database connection
-        chat_id (UUID): ID of the chat/conversation to update
-
-    Returns:
-        bool: True if chat was updated, False if not found
-    """
-    query = """
-    UPDATE conversations
-    SET 
-        workspace_id = NULL
-    WHERE conversation_id = %s
-    """
-
-    with conn.cursor() as cursor:
-        cursor.execute(query, (chat_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-
-
 def get_workspace_contents_query(
     conn: PGConnection, workspace_id: UUID
 ) -> Optional[Dict[str, Any]]:

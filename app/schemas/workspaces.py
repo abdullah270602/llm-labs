@@ -20,15 +20,6 @@ class WorkspaceResponse(WorkspaceBase):
     created_at: datetime
     
 
-class AddChatToWorkspaceRequest(BaseModel):
-    conversation_id: UUID
-
-
-class AddChatToWorkspaceResponse(BaseModel):
-    conversation_id: UUID
-    workspace_id: UUID
-    
-
 class WorkspaceChat(BaseModel):
     conversation_id: UUID
     title: str

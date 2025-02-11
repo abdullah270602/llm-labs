@@ -4,8 +4,19 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.custom_exceptions import WorkspaceLimitExceeded
 from app.database.connection import PostgresConnection
-from app.database.queries import add_chat_to_workspace_query, create_workspace_query, delete_workspace_query, get_user_workspaces_query, get_workspace_contents_query, remove_chat_from_workspace_query
-from app.schemas.workspaces import AddChatToWorkspaceRequest, AddChatToWorkspaceResponse, CreateWorkspaceRequest, DeleteWorkspaceRequest, UserWorkspacesResponse, WorkspaceContents, WorkspaceResponse
+from app.database.queries import (
+    create_workspace_query,
+    delete_workspace_query,
+    get_user_workspaces_query,
+    get_workspace_contents_query,
+)
+from app.schemas.workspaces import (
+    CreateWorkspaceRequest,
+    DeleteWorkspaceRequest,
+    UserWorkspacesResponse,
+    WorkspaceContents,
+    WorkspaceResponse,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -85,61 +96,6 @@ async def delete_workspace(
         )
 
 
-@router.post(
-    "/{workspace_id}/chats",
-    response_model=AddChatToWorkspaceResponse,
-    status_code=status.HTTP_201_CREATED,
-    description="Adds a chat to a workspace"
-)
-async def add_chat_to_workspace(workspace_id: UUID, request: AddChatToWorkspaceRequest):
-    try:
-        with PostgresConnection() as conn:
-            result = add_chat_to_workspace_query(conn, workspace_id, request.conversation_id)
-            
-            if not result:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Chat does not exist"
-                )
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.error(f"Error adding chat to workspace: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to add chat to workspace"
-        )
-    
-    return AddChatToWorkspaceResponse(**result)
-
-
-@router.delete(
-    "/chat/{chat_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    description="Removes a chat from its workspace"
-)
-async def remove_chat_from_workspace(chat_id: UUID):
-        try:
-            with PostgresConnection() as conn:
-                removed = remove_chat_from_workspace_query(conn, chat_id)
-            if not removed:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Chat does not exist"
-                )
-
-        except HTTPException:
-            raise
-    
-        except Exception as e:
-            logger.error(f"Error removing chat from workspace: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to remove chat from workspace"
-            )
-
-
 @router.get(
     "/{workspace_id}/contents",
     response_model=WorkspaceContents,
@@ -166,4 +122,3 @@ async def get_workspace_contents(workspace_id: UUID):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve workspace contents"
         )
-        
