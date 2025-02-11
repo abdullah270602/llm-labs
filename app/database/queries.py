@@ -527,6 +527,7 @@ def get_current_location(conn: PGConnection, item_type: ItemType, item_id: UUID)
             else:
                 return Location(type=LocationType.GLOBAL)
 
+
 def move_item(
     conn: PGConnection, 
     item_type: ItemType,
