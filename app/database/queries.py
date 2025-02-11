@@ -1,9 +1,10 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 from psycopg2.extensions import connection as PGConnection
 import psycopg2.extras
 
-from app.custom_exceptions import WorkspaceLimitExceeded
+from app.custom_exceptions import MovementError, WorkspaceLimitExceeded
+from app.schemas.movements import ItemType, Location, LocationType
 from app.schemas.workspaces import DeletionMode
 
 
@@ -41,7 +42,7 @@ def select_chat_context_by_id(conn: PGConnection, chat_id: UUID) -> dict:
     GROUP BY c.current_model_id;
     """
     # Use RealDictCursor for JSON output
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
         cursor.execute(query, (chat_id,))
         records = cursor.fetchone()
         return records
@@ -70,13 +71,15 @@ def select_chat_by_id(conn: PGConnection, chat_id: UUID) -> dict:
     GROUP BY c.current_model_id, c.conversation_id, c.created_at, c.updated_at;
     """
     # Use RealDictCursor for JSON output
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
         cursor.execute(query, (chat_id,))
         records = cursor.fetchone()
         return records
 
 
-def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset) -> list: # NOt being used
+def select_user_chat_titles(
+    conn: PGConnection, user_id: int, limit: int, offset
+) -> list:  # NOt being used
     """
     List all chat IDs and titles for a given user.
     """
@@ -92,17 +95,24 @@ def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset
         return cursor.fetchall()
 
 
-def insert_chat(conn: PGConnection, user_id: UUID, current_model_id: UUID, title: str) -> dict:
+def insert_chat(
+    conn: PGConnection,
+    user_id: UUID,
+    current_model_id: UUID,
+    title: str,
+    workspace_id: UUID = None,
+    folder_id: UUID = None,
+) -> dict:
     """
     Create a new chat and return the inserted record.
     """
     query = """
-    INSERT INTO conversations (user_id, current_model_id, title)
-    VALUES (%s, %s, %s)
-    RETURNING conversation_id, current_model_id, title;
+    INSERT INTO conversations (user_id, current_model_id, title, workspace_id, folder_id)
+    VALUES (%s, %s, %s, %s, %s)
+    RETURNING conversation_id, current_model_id, title, workspace_id, folder_id;
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-        cursor.execute(query, (user_id, current_model_id, title))
+        cursor.execute(query, (user_id, current_model_id, title, workspace_id, folder_id))
         chat_id = cursor.fetchone()
         conn.commit()
         return chat_id
@@ -122,13 +132,13 @@ def insert_chat_messages(conn: PGConnection, messages_data: list) -> list:
     """
     # Flatten the list of tuples into a single list of values for the SQL query
     flattened_values = [value for message in messages_data for value in message]
-    
+
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, flattened_values)
         new_messages = cursor.fetchall()
         conn.commit()
         return new_messages
-    
+
 
 def get_model_name_and_service_by_id(conn: PGConnection, model_id: UUID) -> str:
     """
@@ -162,7 +172,7 @@ def update_chat_title_query(conn: PGConnection, chat_id: UUID, new_title: str) -
         conn.commit()
         return updated_record
 
-    
+
 def delete_chat_query(conn: PGConnection, chat_id: UUID) -> None:
     """
     Delete a chat conversation by its ID.
@@ -178,7 +188,9 @@ def delete_chat_query(conn: PGConnection, chat_id: UUID) -> None:
         return cursor.rowcount > 0
 
 
-def update_conversation_model(conn: PGConnection, chat_id: UUID, model_id: UUID) -> dict:
+def update_conversation_model(
+    conn: PGConnection, chat_id: UUID, model_id: UUID
+) -> dict:
     """
     Update the current model for a chat conversation.
     """
@@ -193,9 +205,11 @@ def update_conversation_model(conn: PGConnection, chat_id: UUID, model_id: UUID)
         updated_record = cursor.fetchone()
         conn.commit()
         return updated_record
-    
-    
-def select_user_chat_titles_and_count_single_row(conn: PGConnection, user_id: int, limit: int, offset: int) -> Dict[str, Any]:
+
+
+def select_user_chat_titles_and_count_single_row(
+    conn: PGConnection, user_id: int, limit: int, offset: int
+) -> Dict[str, Any]:
     """
     Returns one dictionary with:
       {
@@ -240,31 +254,30 @@ def select_user_chat_titles_and_count_single_row(conn: PGConnection, user_id: in
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
         cursor.execute(query, (user_id, user_id, limit, offset))
-        row = cursor.fetchone()  # Could be None if user has zero conversations or offset out of range
+        row = (
+            cursor.fetchone()
+        )  # Could be None if user has zero conversations or offset out of range
 
         if not row:
             # If there are no rows, user might have zero conversations
             # or the offset is out of range. We'll handle that gracefully.
-            return {
-                "total_count": 0,
-                "conversations": []
-            }
+            return {"total_count": 0, "conversations": []}
 
         return {
             "total_count": row["total_count"],
             # row["conversations"] is a JSON array => RealDictCursor returns it as a Python list
-            "conversations": row["conversations"] or []
+            "conversations": row["conversations"] or [],
         }
 
 
 def get_user_workspace_count(conn: PGConnection, user_id: UUID) -> int:
     """
     Get the number of workspaces a user currently has.
-    
+
     Args:
         conn (PGConnection): PostgreSQL database connection
         user_id (UUID): ID of the user
-        
+
     Returns:
         int: Number of workspaces owned by the user
     """
@@ -273,29 +286,31 @@ def get_user_workspace_count(conn: PGConnection, user_id: UUID) -> int:
     FROM workspaces
     WHERE user_id = %s;
     """
-    
+
     with conn.cursor() as cursor:
         cursor.execute(query, (user_id,))
         return cursor.fetchone()[0]
 
 
-def create_workspace_query(conn: PGConnection, user_id: UUID, name: str, description: str = None) -> Dict[str, Any]:
+def create_workspace_query(
+    conn: PGConnection, user_id: UUID, name: str, description: str = None
+) -> Dict[str, Any]:
     """
     Create a new workspace and return the inserted record.
-    
+
     Args:
         conn (PGConnection): PostgreSQL database connection
         user_id (UUID): ID of the user creating the workspace
         name (str): Name of the workspace
         description (str, optional): Description of the workspace
-        
+
     Returns:
         Dict[str, Any]: Dictionary containing the created workspace details
     """
     current_count = get_user_workspace_count(conn, user_id)
     if current_count >= 5:
         raise WorkspaceLimitExceeded()
-    
+
     query = """
     INSERT INTO workspaces (
         user_id,
@@ -314,7 +329,7 @@ def create_workspace_query(conn: PGConnection, user_id: UUID, name: str, descrip
         description,
         created_at
     """
-    
+
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, (user_id, name, description))
         workspace = cursor.fetchone()
@@ -323,19 +338,17 @@ def create_workspace_query(conn: PGConnection, user_id: UUID, name: str, descrip
 
 
 def delete_workspace_query(
-    conn: PGConnection, 
-    workspace_id: UUID, 
-    mode: DeletionMode = DeletionMode.ARCHIVE
+    conn: PGConnection, workspace_id: UUID, mode: DeletionMode = DeletionMode.ARCHIVE
 ) -> bool:
     """
     Delete a workspace with specified deletion mode.
-    
+
     Args:
         conn: PostgreSQL database connection
         workspace_id: ID of the workspace to delete
         mode: DeletionMode specifying how to handle workspace contents.
              Defaults to ARCHIVE which preserves contents in global space.
-    
+
     Returns:
         bool: True if workspace was found and deleted
     """
@@ -345,17 +358,17 @@ def delete_workspace_query(
         SET workspace_id = NULL
         WHERE workspace_id = %s
     """
-    
+
     delete_contents_query = """
         DELETE FROM conversations
         WHERE workspace_id = %s
     """
-    
+
     delete_workspace_query = """
         DELETE FROM workspaces
         WHERE workspace_id = %s
     """
-    
+
     try:
         with conn.cursor() as cursor:
             if mode == DeletionMode.ARCHIVE:
@@ -364,28 +377,30 @@ def delete_workspace_query(
             else:  # PERMANENT deletion
                 # Delete all contents first
                 cursor.execute(delete_contents_query, (workspace_id,))
-                
+
             # Then delete the workspace
             cursor.execute(delete_workspace_query, (workspace_id,))
             rows_affected = cursor.rowcount
             conn.commit()
-            
+
             return rows_affected > 0
-            
+
     except Exception as e:
         conn.rollback()
         raise e
 
 
-def add_chat_to_workspace_query(conn: PGConnection, workspace_id: UUID, chat_id: UUID) -> Dict[str, Any]:
+def add_chat_to_workspace_query(
+    conn: PGConnection, workspace_id: UUID, chat_id: UUID
+) -> Dict[str, Any]:
     """
     Updates a conversation to associate it with a workspace.
-    
+
     Args:
         conn (PGConnection): PostgreSQL database connection
         workspace_id (UUID): ID of the workspace
         chat_id (UUID): ID of the chat/conversation to update
-        
+
     Returns:
         Dict[str, Any]: Dictionary containing the updated conversation details
     """
@@ -398,22 +413,22 @@ def add_chat_to_workspace_query(conn: PGConnection, workspace_id: UUID, chat_id:
         conversation_id,
         workspace_id;
     """
-    
+
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, (workspace_id, chat_id))
         result = cursor.fetchone()
         conn.commit()
         return result
-    
-    
+
+
 def remove_chat_from_workspace_query(conn: PGConnection, chat_id: UUID) -> bool:
     """
     Removes a chat from its workspace by setting workspace_id to NULL.
-    
+
     Args:
         conn (PGConnection): PostgreSQL database connection
         chat_id (UUID): ID of the chat/conversation to update
-        
+
     Returns:
         bool: True if chat was updated, False if not found
     """
@@ -423,21 +438,23 @@ def remove_chat_from_workspace_query(conn: PGConnection, chat_id: UUID) -> bool:
         workspace_id = NULL
     WHERE conversation_id = %s
     """
-    
+
     with conn.cursor() as cursor:
         cursor.execute(query, (chat_id,))
         conn.commit()
         return cursor.rowcount > 0
-    
 
-def get_workspace_contents_query(conn: PGConnection, workspace_id: UUID) -> Optional[Dict[str, Any]]:
+
+def get_workspace_contents_query(
+    conn: PGConnection, workspace_id: UUID
+) -> Optional[Dict[str, Any]]:
     """
     Retrieves complete workspace contents including chats and folders.
-    
+
     Args:
         conn (PGConnection): PostgreSQL database connection
         workspace_id (UUID): ID of the workspace
-        
+
     Returns:
         Optional[Dict[str, Any]]: Complete workspace data if found, None if workspace doesn't exist
     """
@@ -486,26 +503,28 @@ def get_workspace_contents_query(conn: PGConnection, workspace_id: UUID) -> Opti
         wd.created_at,
         wd.updated_at;
     """
-    
+
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
         cursor.execute(query, (workspace_id, workspace_id))
         result = cursor.fetchone()
-        
+
         if result:
             # Add empty folders list for now
-            result['folders'] = []
-            
+            result["folders"] = []
+
         return result
-    
-    
-def get_user_workspaces_query(conn: PGConnection, user_id: UUID) -> List[Dict[str, Any]]:
+
+
+def get_user_workspaces_query(
+    conn: PGConnection, user_id: UUID
+) -> List[Dict[str, Any]]:
     """
     Get all workspaces (id and title only) for a user.
-    
+
     Args:
         conn (PGConnection): PostgreSQL database connection
         user_id (UUID): ID of the user
-        
+
     Returns:
         List[Dict[str, Any]]: List of workspace summaries
     """
@@ -518,7 +537,108 @@ def get_user_workspaces_query(conn: PGConnection, user_id: UUID) -> List[Dict[st
     WHERE user_id = %s
     ORDER BY created_at DESC;
     """
-    
+
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, (user_id,))
         return [dict(row) for row in cursor.fetchall()]
+
+
+def get_current_location(conn: PGConnection, item_type: ItemType, item_id: UUID) -> Location:
+    """
+    Determines the current location of an item.
+    For chats: Can be in workspace, folder, or global
+    For folders: Can only be in workspace or global
+    """
+    if item_type == ItemType.CHAT:
+        query = """
+        SELECT workspace_id, folder_id
+        FROM conversations
+        WHERE conversation_id = %s;
+        """
+    else:  # FOLDER
+        query = """
+        SELECT workspace_id
+        FROM folders
+        WHERE folder_id = %s;
+        """
+        
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(query, (item_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            raise MovementError(f"{item_type} with id {item_id} not found")
+            
+        if item_type == ItemType.CHAT:
+            if result['workspace_id']:
+                return Location(type=LocationType.WORKSPACE, id=result['workspace_id'])
+            elif result['folder_id']:
+                return Location(type=LocationType.FOLDER, id=result['folder_id'])
+            else:
+                return Location(type=LocationType.GLOBAL)
+        else:  # FOLDER
+            if result['workspace_id']:
+                return Location(type=LocationType.WORKSPACE, id=result['workspace_id'])
+            else:
+                return Location(type=LocationType.GLOBAL)
+
+def move_item(
+    conn: PGConnection, 
+    item_type: ItemType,
+    item_id: UUID,
+    destination: Location
+) -> Tuple[Location, Location]:
+    """
+    Moves an item to a new location.
+    For chats: Can move to workspace, folder, or global
+    For folders: Can only move to workspace or global
+    
+    Returns:
+        Tuple[Location, Location]: (new_location, previous_location)
+    """
+    # Get current location first
+    previous_location = get_current_location(conn, item_type, item_id)
+    
+    # Validate movement for folders
+    if item_type == ItemType.FOLDER and destination.type == LocationType.FOLDER:
+        raise MovementError("Folders cannot be nested inside other folders")
+    
+    # Prepare update values based on destination
+    update_values = {
+        'item_id': item_id,
+        'workspace_id': None
+    }
+    
+    if destination.type == LocationType.WORKSPACE:
+        update_values['workspace_id'] = destination.id
+    
+    # Choose appropriate update query
+    if item_type == ItemType.CHAT:
+        update_values['folder_id'] = destination.id if destination.type == LocationType.FOLDER else None
+        
+        update_query = """
+        UPDATE conversations
+        SET 
+            workspace_id = %(workspace_id)s,
+            folder_id = %(folder_id)s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE conversation_id = %(item_id)s
+        RETURNING conversation_id;
+        """
+    else:  # FOLDER
+        update_query = """
+        UPDATE folders
+        SET 
+            workspace_id = %(workspace_id)s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE folder_id = %(item_id)s
+        RETURNING folder_id;
+        """
+    
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+        cursor.execute(update_query, update_values)
+        if not cursor.fetchone():
+            raise MovementError(f"Failed to update {item_type}")
+        conn.commit()
+    
+    return destination, previous_location
