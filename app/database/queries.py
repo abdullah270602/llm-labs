@@ -83,7 +83,7 @@ def select_user_chat_titles(conn: PGConnection, user_id: int, limit: int, offset
     query = """
         SELECT conversation_id, title
         FROM conversations
-        WHERE user_id = %s
+        WHERE user_id = %s AND workspace_id IS NULL AND folder_id IS NULL
         ORDER BY created_at DESC
         LIMIT %s OFFSET %s;
         """
@@ -210,14 +210,14 @@ def select_user_chat_titles_and_count_single_row(conn: PGConnection, user_id: in
     WITH total AS (
         SELECT COUNT(*)::int AS total_count
         FROM conversations
-        WHERE user_id = %s
+        WHERE user_id = %s AND workspace_id IS NULL AND folder_id IS NULL
     ),
     paged AS (
         SELECT
             conversation_id,
             title
         FROM conversations
-        WHERE user_id = %s
+        WHERE user_id = %s AND workspace_id IS NULL AND folder_id IS NULL
         ORDER BY created_at DESC
         LIMIT %s
         OFFSET %s
@@ -320,7 +320,6 @@ def create_workspace_query(conn: PGConnection, user_id: UUID, name: str, descrip
         workspace = cursor.fetchone()
         conn.commit()
         return workspace
-
 
 
 def delete_workspace_query(

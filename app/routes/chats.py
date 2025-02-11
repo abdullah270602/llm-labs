@@ -237,7 +237,7 @@ async def delete_chat(chat_id: UUID):
     "/titles/{user_id}/",
     response_model=PaginatedChatResponse,
     status_code=status.HTTP_200_OK,
-    description="Get chat titles for a user",
+    description="Get chat titles within the global space for a user",
 )
 async def get_user_chats(
     user_id: UUID,
