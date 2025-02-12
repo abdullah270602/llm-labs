@@ -1,11 +1,11 @@
 import logging
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Body, HTTPException, status
 
 from app.database.connection import PostgresConnection
-from app.database.folder_queries import create_folder_query
-from app.schemas.folders import CreateFolderRequest, FolderResponse
+from app.database.folder_queries import create_folder_query, delete_folder_query
+from app.schemas.folders import CreateFolderRequest, DeleteFolderRequest, FolderResponse
 from app.schemas.movements import LocationType
 
 
@@ -54,3 +54,39 @@ async def create_folder(request: CreateFolderRequest):
               detail='Failed to create folder'
         )
             
+            
+
+@router.delete(
+    "/{folder_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    description="Delete a Folder. By default, contents are moved to global space. Set mode=permanent to delete all contents."
+)
+async def delete_folder(
+    folder_id: UUID,
+    request: DeleteFolderRequest
+):
+    """
+    Delete a folder with specified deletion mode:
+    - ARCHIVE (default): Moves all conversations to global space
+    - PERMANENT: Permanently deletes the folder and all its contents
+
+    """
+    try:
+        # Use default mode if request not provided
+        mode = request.mode if request else DeletionMode.ARCHIVE
+        
+        with PostgresConnection() as conn:
+            delete_folder_query(
+                conn=conn,
+                folder_id=folder_id,
+                mode=mode
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting folder: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete folder"
+        )

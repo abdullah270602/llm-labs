@@ -4,6 +4,7 @@ from psycopg2.extensions import connection as PGConnection
 from typing import Any, Dict, Optional
 from uuid import UUID
 from app.schemas.movements import LocationType
+from app.schemas.workspaces import DeletionMode
 
 
 def create_folder_query(
@@ -77,3 +78,70 @@ def create_folder_query(
         folder = cur.fetchone()
 
         return dict(folder)
+
+
+
+def delete_folder_query(
+    conn: PGConnection,
+    folder_id: UUID,
+    mode: DeletionMode
+) -> None:
+    """
+    Deletes a folder using the specified deletion mode.
+    
+    Args:
+        conn: Database connection
+        folder_id: UUID of the folder to delete
+        user_id: UUID of the user requesting deletion
+        mode: DeletionMode.ARCHIVE (move contents to global) or DeletionMode.PERMANENT (delete all)
+    """
+    
+    VERIFY_FOLDER_ACCESS = """
+    SELECT EXISTS(
+        SELECT 1 
+        FROM folders 
+        WHERE folder_id = %s
+    )
+    """
+    
+    ARCHIVE_CONVERSATIONS = """
+    UPDATE conversations 
+    SET folder_id = NULL,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE folder_id = %s
+    """
+    
+    DELETE_CONVERSATIONS = """
+    DELETE FROM conversations 
+    WHERE folder_id = %s
+    """
+    
+    DELETE_FOLDER = """
+    DELETE FROM folders 
+    WHERE folder_id = %s
+    """
+    
+    # First verify folder exists and belongs to user
+    with conn.cursor() as cur:
+        cur.execute(VERIFY_FOLDER_ACCESS, (folder_id,))
+        if not cur.fetchone()[0]:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Folder not found"
+            )
+    
+    if mode == DeletionMode.ARCHIVE:
+        with conn.cursor() as cur:
+            # Move conversations to global space
+            cur.execute(ARCHIVE_CONVERSATIONS, (folder_id,))
+            # Delete the folder
+            cur.execute(DELETE_FOLDER, (folder_id,))
+            
+    else:  # PERMANENT deletion
+        with conn.cursor() as cur:
+            # Delete all conversations in the folder
+            cur.execute(DELETE_CONVERSATIONS, (folder_id,))
+            # Delete the folder
+            cur.execute(DELETE_FOLDER, (folder_id,))
+    
+    conn.commit()

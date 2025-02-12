@@ -1,9 +1,9 @@
 from datetime import datetime
 from uuid import UUID
-from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Optional
+from pydantic import BaseModel, Field
 
-from app.schemas.movements import Location, LocationType
+from app.schemas.movements import Location
 from app.schemas.workspaces import DeletionMode
 
 
@@ -19,3 +19,10 @@ class FolderResponse(BaseModel):
     updated_at: datetime
     user_id: UUID
     workspace_id: Optional[UUID] = None  # Optional since it could be in global space
+    
+
+class DeleteFolderRequest(BaseModel):
+    mode: Optional[DeletionMode] = Field(
+        default=DeletionMode.ARCHIVE,
+        description="Defaults to 'archive' which moves contents to global space. Use 'permanent' to delete all contents."
+    )
