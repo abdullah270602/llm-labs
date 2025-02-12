@@ -1,8 +1,9 @@
 from fastapi import HTTPException, status
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+from app.schemas.folders import FolderInfo
 from app.schemas.movements import LocationType
 from app.schemas.workspaces import DeletionMode
 
@@ -145,3 +146,61 @@ def delete_folder_query(
             cur.execute(DELETE_FOLDER, (folder_id,))
     
     conn.commit()
+    
+    
+def get_user_global_folders_query(
+    conn: PGConnection,
+    user_id: UUID
+) -> List[Dict[str, Any]]:
+    """
+    Retrieves all personal folders (not associated with any workspace) 
+    belonging to a specific user, along with their conversations.
+    
+    Args:
+        conn: Database connection
+        user_id: UUID of the user whose folders to retrieve
+        
+    Returns:
+        List of folder objects with their associated conversations
+    """
+    query = """
+    WITH folder_conversations AS (
+        -- Aggregate conversations for each folder
+        SELECT 
+            f.folder_id,
+            COALESCE(
+                jsonb_agg(
+                    jsonb_build_object(
+                        'conversation_id', c.conversation_id,
+                        'title', c.title,
+                        'created_at', c.created_at,
+                        'updated_at', c.updated_at
+                    ) ORDER BY c.updated_at DESC
+                ) FILTER (WHERE c.conversation_id IS NOT NULL),
+                '[]'::jsonb
+            ) as conversations
+        FROM folders f
+        LEFT JOIN conversations c ON c.folder_id = f.folder_id
+        WHERE f.user_id = %s 
+        AND f.workspace_id IS NULL
+        GROUP BY f.folder_id
+    )
+    SELECT 
+        f.folder_id,
+        f.name,
+        f.created_at,
+        f.updated_at,
+        f.user_id,
+        COALESCE(fc.conversations, '[]'::jsonb) as conversations
+    FROM folders f
+    LEFT JOIN folder_conversations fc ON f.folder_id = fc.folder_id
+    WHERE f.user_id = %s
+    AND f.workspace_id IS NULL
+    ORDER BY f.created_at DESC;
+    """
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(query, (user_id, user_id))
+        results = cur.fetchall()
+        
+        return [FolderInfo(**row) for row in results]

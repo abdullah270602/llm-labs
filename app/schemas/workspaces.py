@@ -4,6 +4,8 @@ from uuid import UUID
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
+from app.schemas.folders import FolderInfo
+
 
 class WorkspaceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -54,19 +56,6 @@ class DeleteWorkspaceRequest(BaseModel):
         description="Defaults to 'archive' which moves contents to global space. Use 'permanent' to delete all contents."
     )
     
-    
-class ChatInFolder(BaseModel):
-    conversation_id: UUID
-    title: str
-    created_at: datetime
-    updated_at: datetime
-
-class FolderInfo(BaseModel):  # Renamed from FolderWithChats and removed workspace_id
-    folder_id: UUID
-    name: str
-    created_at: datetime
-    updated_at: datetime
-    conversations: List[ChatInFolder] = []  # Default empty list
 
 class WorkspaceFoldersResponse(BaseModel):  # Updated to include workspace info
     workspace_id: UUID

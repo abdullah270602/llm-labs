@@ -1,11 +1,11 @@
 import logging
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from app.database.connection import PostgresConnection
-from app.database.folder_queries import create_folder_query, delete_folder_query
-from app.schemas.folders import CreateFolderRequest, DeleteFolderRequest, FolderResponse
+from app.database.folder_queries import create_folder_query, delete_folder_query, get_user_global_folders_query
+from app.schemas.folders import CreateFolderRequest, DeleteFolderRequest, FolderInfo, FolderResponse
 from app.schemas.movements import LocationType
 
 
@@ -89,4 +89,35 @@ async def delete_folder(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete folder"
+        )
+        
+  
+@router.get(
+    "/global/{user_id}",
+    response_model=List[FolderInfo],
+    summary="Get User's Personal Folders",
+    description="Retrieves all global folders (not in workspaces) for the specified user"
+)
+async def get_user_global_folders(
+    user_id: UUID,
+) -> List[FolderInfo]:
+    """
+    Retrieves all personal folders and their conversations for the specified user.
+    These are folders that don't belong to any workspace.
+    """
+    try:
+        with PostgresConnection() as conn:
+            folders = get_user_global_folders_query(
+                conn=conn,
+                user_id=user_id
+            )
+            return folders
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving personal folders: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve personal folders"
         )
