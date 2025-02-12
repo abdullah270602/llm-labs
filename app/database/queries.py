@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
+from fastapi import HTTPException, status
 from psycopg2.extensions import connection as PGConnection
 import psycopg2.extras
 
@@ -390,7 +391,7 @@ def delete_workspace_query(
         raise e
 
 
-def get_workspace_contents_query(
+def get_workspace_chats_query(
     conn: PGConnection, workspace_id: UUID
 ) -> Optional[Dict[str, Any]]:
     """
@@ -408,7 +409,6 @@ def get_workspace_contents_query(
         SELECT 
             w.workspace_id,
             w.name,
-            w.description,
             w.created_at,
             w.updated_at
         FROM workspaces w
@@ -419,8 +419,7 @@ def get_workspace_contents_query(
             c.conversation_id,
             c.title,
             c.created_at,
-            c.updated_at,
-            c.current_model_id
+            c.updated_at
         FROM conversations c
         WHERE c.workspace_id = %s
         ORDER BY c.created_at DESC
@@ -433,8 +432,7 @@ def get_workspace_contents_query(
                     'conversation_id', wc.conversation_id,
                     'title', wc.title,
                     'created_at', wc.created_at,
-                    'updated_at', wc.updated_at,
-                    'current_model_id', wc.current_model_id
+                    'updated_at', wc.updated_at
                 )
             ) FILTER (WHERE wc.conversation_id IS NOT NULL),
             '[]'
@@ -444,7 +442,6 @@ def get_workspace_contents_query(
     GROUP BY 
         wd.workspace_id,
         wd.name,
-        wd.description,
         wd.created_at,
         wd.updated_at;
     """
@@ -453,11 +450,82 @@ def get_workspace_contents_query(
         cursor.execute(query, (workspace_id, workspace_id))
         result = cursor.fetchone()
 
-        if result:
-            # Add empty folders list for now
-            result["folders"] = []
-
         return result
+
+
+def get_workspace_folders_query(
+    conn: PGConnection, 
+    workspace_id: UUID
+) -> Dict[str, Any]:
+    """
+    Retrieves workspace information along with all its folders and their conversations.
+    Returns a structured response matching the WorkspaceFoldersResponse model.
+    """
+    query = """
+    WITH workspace_info AS (
+        -- Get workspace details
+        SELECT 
+            w.workspace_id,
+            w.name,
+            w.created_at,
+            w.updated_at
+        FROM workspaces w
+        WHERE w.workspace_id = %s
+    ),
+    folder_conversations AS (
+        -- Aggregate conversations for each folder
+        SELECT 
+            f.folder_id,
+            COALESCE(
+                jsonb_agg(
+                    jsonb_build_object(
+                        'conversation_id', c.conversation_id,
+                        'title', c.title,
+                        'created_at', c.created_at,
+                        'updated_at', c.updated_at
+                    ) ORDER BY c.updated_at DESC
+                ) FILTER (WHERE c.conversation_id IS NOT NULL),
+                '[]'::jsonb
+            ) as conversations
+        FROM folders f
+        LEFT JOIN conversations c ON c.folder_id = f.folder_id
+        WHERE f.workspace_id = %s
+        GROUP BY f.folder_id
+    )
+    SELECT 
+        wi.workspace_id,
+        wi.name,
+        wi.created_at,
+        wi.updated_at,
+        COALESCE(
+            jsonb_agg(
+                jsonb_build_object(
+                    'folder_id', f.folder_id,
+                    'name', f.name,
+                    'created_at', f.created_at,
+                    'updated_at', f.updated_at,
+                    'conversations', COALESCE(fc.conversations, '[]'::jsonb)
+                ) ORDER BY f.created_at DESC
+            ) FILTER (WHERE f.folder_id IS NOT NULL),
+            '[]'::jsonb
+        ) as folders
+    FROM workspace_info wi
+    LEFT JOIN folders f ON f.workspace_id = wi.workspace_id
+    LEFT JOIN folder_conversations fc ON f.folder_id = fc.folder_id
+    GROUP BY wi.workspace_id, wi.name, wi.created_at, wi.updated_at;
+    """
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(query, (workspace_id, workspace_id))
+        result = cur.fetchone()
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workspace not found"
+            )
+            
+        return dict(result)
 
 
 def get_user_workspaces_query(

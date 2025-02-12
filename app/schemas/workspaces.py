@@ -25,21 +25,14 @@ class WorkspaceChat(BaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
-    current_model_id: UUID
     
 
-class WorkspaceFolder(BaseModel):
-    pass
-
-
-class WorkspaceContents(BaseModel):
+class WorkspaceChats(BaseModel):
     workspace_id: UUID
     name: str
-    description: Optional[str]
     created_at: datetime
     updated_at: datetime
     chats: List[WorkspaceChat] = []  # Default empty list
-    folders: List[WorkspaceFolder] = []  # Default empty list until implemented
 
 
 class Workspace(BaseModel):
@@ -60,3 +53,24 @@ class DeleteWorkspaceRequest(BaseModel):
         default=DeletionMode.ARCHIVE,
         description="Defaults to 'archive' which moves contents to global space. Use 'permanent' to delete all contents."
     )
+    
+    
+class ChatInFolder(BaseModel):
+    conversation_id: UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+class FolderInfo(BaseModel):  # Renamed from FolderWithChats and removed workspace_id
+    folder_id: UUID
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    conversations: List[ChatInFolder] = []  # Default empty list
+
+class WorkspaceFoldersResponse(BaseModel):  # Updated to include workspace info
+    workspace_id: UUID
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    folders: List[FolderInfo] = []  # Default empty list

@@ -8,13 +8,15 @@ from app.database.queries import (
     create_workspace_query,
     delete_workspace_query,
     get_user_workspaces_query,
-    get_workspace_contents_query,
+    get_workspace_chats_query,
+    get_workspace_folders_query,
 )
 from app.schemas.workspaces import (
     CreateWorkspaceRequest,
     DeleteWorkspaceRequest,
     UserWorkspacesResponse,
-    WorkspaceContents,
+    WorkspaceChats,
+    WorkspaceFoldersResponse,
     WorkspaceResponse,
 )
 
@@ -97,14 +99,14 @@ async def delete_workspace(
 
 
 @router.get(
-    "/{workspace_id}/contents",
-    response_model=WorkspaceContents,
+    "/{workspace_id}/chats",
+    response_model=WorkspaceChats,
     description="Retrieves complete workspace contents including chats and folders"
 )
-async def get_workspace_contents(workspace_id: UUID):
+async def get_workspace_chats(workspace_id: UUID):
     try:
         with PostgresConnection() as conn:
-            result = get_workspace_contents_query(conn, workspace_id)
+            result = get_workspace_chats_query(conn, workspace_id)
             
             if not result:
                 raise HTTPException(
@@ -112,13 +114,34 @@ async def get_workspace_contents(workspace_id: UUID):
                     detail="Workspace not found"
                 )
             
-            return WorkspaceContents(**result)
+            return WorkspaceChats(**result)
             
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving workspace contents: {e}")
+        logger.error(f"Error retrieving workspace chats: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve workspace contents"
+            detail="Failed to retrieve workspace chats"
+        )
+
+
+@router.get(
+    "/{workspace_id}/folders",
+    response_model=WorkspaceFoldersResponse,
+    description="Retrieve workspace with all folders and their conversations"
+)
+async def get_workspace_folders(workspace_id: UUID):
+    try:
+        with PostgresConnection() as conn:
+            workspace_data = get_workspace_folders_query(conn, workspace_id)
+            return WorkspaceFoldersResponse(**workspace_data)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving workspace folders: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve workspace folders"
         )
