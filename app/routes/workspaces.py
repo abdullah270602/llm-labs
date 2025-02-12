@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 async def create_workspace(request: CreateWorkspaceRequest):
     try:
         with PostgresConnection() as conn:
-            workspace = create_workspace_query(conn, request.user_id, request.name, request.description)
+            workspace = create_workspace_query(conn, request.user_id, request.name)
     except WorkspaceLimitExceeded as e:
         # Return a 400 Bad Request error if the workspace limit is exceeded.
         raise HTTPException(status_code=400, detail=e.message)

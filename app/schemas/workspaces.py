@@ -9,8 +9,6 @@ from app.schemas.folders import FolderInfo
 
 class WorkspaceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
-
 
 class CreateWorkspaceRequest(WorkspaceBase):
     user_id: UUID

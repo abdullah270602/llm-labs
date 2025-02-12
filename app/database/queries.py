@@ -294,8 +294,7 @@ def get_user_workspace_count(conn: PGConnection, user_id: UUID) -> int:
 
 
 def create_workspace_query(
-    conn: PGConnection, user_id: UUID, name: str, description: str = None
-) -> Dict[str, Any]:
+    conn: PGConnection, user_id: UUID, name: str) -> Dict[str, Any]:
     """
     Create a new workspace and return the inserted record.
 
@@ -303,7 +302,6 @@ def create_workspace_query(
         conn (PGConnection): PostgreSQL database connection
         user_id (UUID): ID of the user creating the workspace
         name (str): Name of the workspace
-        description (str, optional): Description of the workspace
 
     Returns:
         Dict[str, Any]: Dictionary containing the created workspace details
@@ -315,11 +313,9 @@ def create_workspace_query(
     query = """
     INSERT INTO workspaces (
         user_id,
-        name,
-        description
+        name
     )
     VALUES (
-        %s,
         %s,
         %s
     )
@@ -327,12 +323,11 @@ def create_workspace_query(
         workspace_id,
         user_id,
         name,
-        description,
         created_at
     """
 
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-        cursor.execute(query, (user_id, name, description))
+        cursor.execute(query, (user_id, name))
         workspace = cursor.fetchone()
         conn.commit()
         return workspace
