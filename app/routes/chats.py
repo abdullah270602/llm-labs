@@ -239,7 +239,7 @@ async def delete_chat(chat_id: UUID):
     status_code=status.HTTP_200_OK,
     description="Get chat titles within the global space for a user",
 )
-async def get_user_chats(
+async def get_user_global_chats(
     user_id: UUID,
     limit: int = Query(default=10, ge=1),
     offset: int = Query(default=0, ge=0),
