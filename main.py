@@ -7,6 +7,7 @@ from app.routes.chats import router as chat_router
 from app.routes.models import router as model_router
 from app.routes.workspaces import router as workspaces_router
 from app.routes.movements import router as movements_router
+from app.routes.folders import router as folders_router
 from dotenv import load_dotenv
 
 
@@ -45,4 +46,6 @@ def read_root():
 app.include_router(model_router)
 app.include_router(chat_router)
 app.include_router(workspaces_router)
+app.include_router(folders_router)
 app.include_router(movements_router)
+
