@@ -2,6 +2,7 @@ import logging
 from typing import List
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
+from app.database.chat_queries import delete_chat_query, insert_chat, insert_chat_messages, select_chat_by_id, select_chat_context_by_id, select_user_chat_titles_and_count_single_row, update_chat_title_query, update_conversation_model
 from app.database.connection import PostgresConnection
 import psycopg2.extras
 
@@ -10,19 +11,8 @@ from app.services.generate_title import get_chat_title
 from app.services.model_services import get_reply_from_model
 
 psycopg2.extras.register_uuid()
-from app.database.queries import (
-    delete_chat_query,
-    insert_chat,
-    insert_chat_messages,
-    select_chat_by_id,
-    select_chat_context_by_id,
-    select_user_chat_titles,
-    select_user_chat_titles_and_count_single_row,
-    update_chat_title_query,
-    update_conversation_model,
-)
+
 from app.schemas.chats import (
-    ChatTitlesResponse,
     CreateChatRequest,
     CreateChatResponse,
     CreateMessageRequest,

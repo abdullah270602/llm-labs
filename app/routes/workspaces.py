@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.custom_exceptions import WorkspaceLimitExceeded
 from app.database.connection import PostgresConnection
-from app.database.queries import (
+from app.database.workspace_queries import (
     create_workspace_query,
     delete_workspace_query,
     get_user_workspaces_query,

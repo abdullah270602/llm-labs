@@ -1,8 +1,10 @@
 import logging
 from typing import List
 from fastapi import APIRouter, HTTPException, status
-from app.database.queries import get_all_models
+
+
 from app.database.connection import PostgresConnection
+from app.database.model_queries import get_all_models
 from app.schemas.models import ModelInfo
 
 

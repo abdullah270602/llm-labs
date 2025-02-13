@@ -2,7 +2,7 @@ import logging
 import os
 from openai import OpenAI
 from app.database.connection import PostgresConnection
-from app.database.queries import get_model_name_and_service_by_id
+from app.database.model_queries import get_model_name_and_service_by_id
 from app.routes.constant import SYSTEM_ROLE
 from app.services.constants import SERVICE_CONFIG
 from app.services.prompts import SYSTEM_PROMPT

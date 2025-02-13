@@ -2,7 +2,8 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from app.custom_exceptions import MovementError
 from app.database.connection import PostgresConnection
-from app.database.queries import move_item
+
+from app.database.movement_queries import move_item
 from app.schemas.movements import MoveRequest, MoveResponse
 
 logger = logging.getLogger(__name__)
