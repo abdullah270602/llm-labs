@@ -1,7 +1,7 @@
 import datetime
 from uuid import UUID
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Request model for creating a new chat 
 class CreateChatRequest(BaseModel):
@@ -16,6 +16,17 @@ class CreateChatRequest(BaseModel):
     )
     initial_message: str
     
+    @field_validator('initial_message')
+    @classmethod
+    def validate_message_not_empty(cls, v: str) -> str:
+        # Remove leading and trailing whitespace
+        v = v.strip()
+        
+        # Check if the message is empty after stripping
+        if not v:
+            raise ValueError('Message cannot be empty or contain only whitespace')
+            
+        return v
 
 # Response model for a single message
 class MessageResponse(BaseModel):
