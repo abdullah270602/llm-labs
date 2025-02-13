@@ -58,7 +58,7 @@ async def create_chat(request: CreateChatRequest):
         with PostgresConnection() as conn:  # TODO replace with async connection
             # Insert chat record
             chat_record = insert_chat(
-                conn, request.user_id, current_model, generated_title
+                conn, request.user_id, current_model, generated_title, request.workspace_id
             )
 
             # Prepare messages: user first, then assistant
@@ -90,6 +90,7 @@ async def create_chat(request: CreateChatRequest):
     chat_response = CreateChatResponse(
         conversation_id=chat_record["conversation_id"],
         current_model_id=current_model,
+        workspace_id=request.workspace_id,
         title=generated_title,
         messages=messages,
     )

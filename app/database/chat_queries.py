@@ -94,9 +94,9 @@ def insert_chat(
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, (user_id, current_model_id, title, workspace_id, folder_id))
-        chat_id = cursor.fetchone()
+        chat = cursor.fetchone()
         conn.commit()
-        return chat_id
+        return chat
 
 
 def insert_chat_messages(conn: PGConnection, messages_data: list) -> list:

@@ -7,7 +7,12 @@ from pydantic import BaseModel, Field
 class CreateChatRequest(BaseModel):
     user_id: UUID
     model_id: Optional[UUID] = None # selected model otherwise defaults to DEFAULT_MODEL
+    workspace_id: Optional[UUID] = Field(
+        default=None,
+        description="Defaults to None if chat is in global space, otherwise set to workspace_id"
+    )
     initial_message: str
+    
 
 # Response model for a single message
 class MessageResponse(BaseModel):
@@ -21,8 +26,11 @@ class MessageResponse(BaseModel):
 class CreateChatResponse(BaseModel):
     conversation_id: UUID
     current_model_id: UUID
+    workspace_id:  Optional[UUID] = None
     title: str
     messages: List[MessageResponse] = []
+
+    
 
 class CreateMessageRequest(BaseModel):
     conversation_id: UUID
