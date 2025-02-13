@@ -2,6 +2,7 @@ import logging
 from typing import List
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import ValidationError
 from app.database.chat_queries import delete_chat_query, insert_chat, insert_chat_messages, select_chat_by_id, select_chat_context_by_id, select_user_chat_titles_and_count_single_row, update_chat_title_query, update_conversation_model
 from app.database.connection import PostgresConnection
 import psycopg2.extras
@@ -81,6 +82,9 @@ async def create_chat(request: CreateChatRequest):
             inserted_messages = insert_chat_messages(conn, messages_data)
             # Convert inserted messages to Pydantic models
             messages = [MessageResponse(**msg) for msg in inserted_messages]
+            
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
 
     except Exception as e:
         logger.error(f"Database error during chat creation: {e}", exc_info=True)
