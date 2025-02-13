@@ -6,7 +6,10 @@ from pydantic import BaseModel, Field
 # Request model for creating a new chat 
 class CreateChatRequest(BaseModel):
     user_id: UUID
-    model_id: Optional[UUID] = None # selected model otherwise defaults to DEFAULT_MODEL
+    model_id: Optional[UUID] = Field(
+        default=None,
+        description="Defaults to DEFAULT_MODEL if null, otherwise set to model_id"
+    ) 
     workspace_id: Optional[UUID] = Field(
         default=None,
         description="Defaults to None if chat is in global space, otherwise set to workspace_id"
@@ -35,7 +38,10 @@ class CreateChatResponse(BaseModel):
 class CreateMessageRequest(BaseModel):
     conversation_id: UUID
     content: str
-    model_id: Optional[UUID] = None  # NEW: user can override or specify a model
+    model_id: Optional[UUID] = Field(
+        default=None,
+        description="Defaults to last used model if null, otherwise set to new model_id"
+    )
 
 class ChatTitlesResponse(BaseModel): # not being used
     conversation_id: UUID
