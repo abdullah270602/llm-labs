@@ -96,6 +96,17 @@ def delete_workspace_query(
         DELETE FROM conversations
         WHERE workspace_id = %s
     """
+    
+    archive_folders_query = """
+        UPDATE folders
+        SET workspace_id = NULL
+        WHERE workspace_id = %s
+    """
+
+    delete_folders_query = """
+        DELETE FROM folders
+        WHERE workspace_id = %s
+    """
 
     delete_workspace_query = """
         DELETE FROM workspaces
@@ -107,9 +118,13 @@ def delete_workspace_query(
             if mode == DeletionMode.ARCHIVE:
                 # Move contents to global space first
                 cursor.execute(archive_contents_query, (workspace_id,))
+                cursor.execute(archive_folders_query, (workspace_id,))
+
             else:  # PERMANENT deletion
                 # Delete all contents first
                 cursor.execute(delete_contents_query, (workspace_id,))
+                cursor.execute(delete_folders_query, (workspace_id,))
+
 
             # Then delete the workspace
             cursor.execute(delete_workspace_query, (workspace_id,))
