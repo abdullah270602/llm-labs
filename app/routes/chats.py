@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/chats", tags=["chats"])
     description="Creates a new chat",
 )
 async def create_chat(request: CreateChatRequest):
-    logger.debug("Received create chat request")
+    logger.info("Received create chat request")
     try:
 
         generated_title = get_chat_title(request.initial_message)
