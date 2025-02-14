@@ -95,7 +95,7 @@ async def delete_folder(
 @router.get(
     "/global/{user_id}",
     response_model=List[FolderInfo],
-    summary="Get User's Personal Folders",
+    summary="Get User's Global Folders",
     description="Retrieves all global folders (not in workspaces) for the specified user"
 )
 async def get_user_global_folders(
