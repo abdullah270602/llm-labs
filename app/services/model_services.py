@@ -5,7 +5,7 @@ from app.database.connection import PostgresConnection
 from app.database.model_queries import get_model_name_and_service_by_id
 from app.routes.constant import SYSTEM_ROLE
 from app.services.constants import SERVICE_CONFIG
-from app.services.prompts import SYSTEM_PROMPT
+from app.services.prompts import CV_BUILDER_PROMPT_CLAUDE, SYSTEM_PROMPT
 
 
 logger = logging.getLogger(__name__)
@@ -56,8 +56,12 @@ def get_reply_from_model(model_id: str, chat: list[str]) -> str:
         raise
 
     try:
+        system_prompt = SYSTEM_PROMPT
+        if model_name == "deepseek-r1-distill-llama-70b":
+            system_prompt = CV_BUILDER_PROMPT_CLAUDE
+            
         # Prepend system prompt to chat sequence
-        chat.insert(0, {"role": SYSTEM_ROLE, "content": SYSTEM_PROMPT})
+        chat.insert(0, {"role": SYSTEM_ROLE, "content": system_prompt })
 
         response = client.chat.completions.create(
             model=model_name,
