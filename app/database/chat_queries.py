@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict
 from uuid import UUID
 from psycopg2.extensions import connection as PGConnection
@@ -105,14 +106,18 @@ def insert_chat_messages(conn: PGConnection, messages_data: list) -> list:
     Each element in messages_data should be a tuple: (conversation_id, role, model_id, content)
     Returns a list of inserted records.
     """
-    placeholders = ", ".join(["(%s, %s, %s, %s)"] * len(messages_data))
+    placeholders = ", ".join(["(%s, %s, %s, %s, %s)"] * len(messages_data))
+    updated_at = datetime.now()
     query = f"""
-    INSERT INTO messages (conversation_id, role, model_id, content)
+    INSERT INTO messages (conversation_id, role, model_id, content, updated_at)
     VALUES {placeholders}
     RETURNING message_id, conversation_id, role, model_id, content;
     """
-    # Flatten the list of tuples into a single list of values for the SQL query
-    flattened_values = [value for message in messages_data for value in message]
+   
+    # Add updated_at to each message's values
+    flattened_values = []
+    for message in messages_data:
+        flattened_values.extend([*message, updated_at])  # Add updated_at to each message
 
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
         cursor.execute(query, flattened_values)
@@ -198,7 +203,7 @@ def select_user_chat_titles_and_count_single_row(
             title
         FROM conversations
         WHERE user_id = %s AND workspace_id IS NULL AND folder_id IS NULL
-        ORDER BY created_at DESC
+        ORDER BY updated_at DESC
         LIMIT %s
         OFFSET %s
     )
@@ -210,7 +215,6 @@ def select_user_chat_titles_and_count_single_row(
                     'conversation_id', paged.conversation_id,
                     'title', paged.title
                 )
-                ORDER BY paged.conversation_id
             ), '[]'::json
         ) AS conversations
     FROM total
