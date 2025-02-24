@@ -12,7 +12,7 @@ def get_chat_title(initial_message) -> str:
     Generate chat title based on the initial message.
     """
     try:
-        client = get_client_for_service("openai") # TODO add to constants
+        client = get_client_for_service("groq") # TODO add to constants
         chat = [
             {"role": SYSTEM_ROLE, "content": CHAT_TITLE_PROMPT},
             {"role": USER_ROLE, "content": initial_message},
@@ -24,14 +24,14 @@ def get_chat_title(initial_message) -> str:
 
     try:
         response = client.chat.completions.create(
-            model= "gpt-4o-mini", # TODO add to constants
+            model= "llama-3.1-8b-instant", # TODO add to constants
             messages= chat,
-            temperature= 0.0
+            temperature= 0.2
         )
         
     except Exception as e:
         logger.error(f"LLM call failed during title generation: {e}", exc_info=True)
-        raise
+        return "-- TITLE GENERATION ERROR --" # TODO Handle this in a better way
 
     try:
         title = response.choices[0].message.content.strip()
