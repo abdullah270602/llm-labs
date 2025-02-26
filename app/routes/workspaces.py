@@ -101,7 +101,7 @@ async def delete_workspace(
 @router.get(
     "/{workspace_id}/chats",
     response_model=WorkspaceChats,
-    description="Retrieves complete workspace contents including chats and folders"
+    description="Retrieves all chats within a workspace."
 )
 async def get_workspace_chats(workspace_id: UUID):
     try:
