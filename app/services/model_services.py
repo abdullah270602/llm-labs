@@ -57,8 +57,8 @@ def get_reply_from_model(model_id: str, chat: list[str]) -> str:
 
     try:
         system_prompt = SYSTEM_PROMPT
-        if model_name == "deepseek-r1-distill-llama-70b":
-            system_prompt = CV_BUILDER_PROMPT_CLAUDE
+        # if model_name == "deepseek-r1-distill-llama-70b":
+        #     system_prompt = CV_BUILDER_PROMPT_CLAUDE
             
         # Prepend system prompt to chat sequence
         chat.insert(0, {"role": SYSTEM_ROLE, "content": system_prompt })
