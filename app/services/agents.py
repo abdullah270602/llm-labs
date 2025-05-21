@@ -70,7 +70,7 @@ quiz_generator_agent = LoopAgent(
 # Root Agent for the Runner
 root_agent = quiz_generator_agent
 
-def call_loop_agent(user_input: str) -> str:
+async def call_loop_agent(user_input: str) -> str:
     session_service = InMemorySessionService()
     runner = Runner(agent=quiz_generator_agent, app_name="LAb47", session_service=session_service)
 

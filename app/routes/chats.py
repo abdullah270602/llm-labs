@@ -51,7 +51,7 @@ async def create_chat(request: CreateChatRequest):
                 
         if str(current_model).strip() == "eef157f7-f48c-43d3-ad58-6bf7c482d5b8":
              # Run the agent to generate a response
-            llm_response = call_loop_agent(request.initial_message)
+            llm_response = await call_loop_agent(request.initial_message)
             llm_response = str(llm_response)
             print("🐍 File: routes/chats.py | Line: 58 | undefined ~ llm_response",llm_response)
         
