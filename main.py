@@ -8,8 +8,10 @@ from app.routes.models import router as model_router
 from app.routes.workspaces import router as workspaces_router
 from app.routes.movements import router as movements_router
 from app.routes.folders import router as folders_router
+from app.routes.auth import router as auth_router
 from dotenv import load_dotenv
-
+from starlette.middleware.sessions import SessionMiddleware
+import os
 
 import logging
 
@@ -27,6 +29,11 @@ app.add_middleware(
     # # allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET_KEY")  # TODO change keys
 )
 
 
@@ -48,4 +55,5 @@ app.include_router(chat_router)
 app.include_router(workspaces_router)
 app.include_router(folders_router)
 app.include_router(movements_router)
+app.include_router(auth_router)
 
