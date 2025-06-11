@@ -28,7 +28,7 @@ async def auth_callback(request: Request):
     "username": user["username"],
     }
     
-    token = create_access_token({"sub": sanitized_user})
+    token = create_access_token(sanitized_user)
 
     return {"access_token": token, "token_type": "bearer"}
 

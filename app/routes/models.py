@@ -1,8 +1,10 @@
 import logging
 from typing import List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer
 
 
+from app.auth.dependencies import get_current_user
 from app.database.connection import PostgresConnection
 from app.database.model_queries import get_all_models
 from app.schemas.models import ModelInfo
@@ -10,7 +12,7 @@ from app.schemas.models import ModelInfo
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/models", tags=["models"])
+router = APIRouter(prefix="/api/models", tags=["models"], dependencies=[Depends(get_current_user)])
 
 
 @router.get(

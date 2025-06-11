@@ -1,8 +1,9 @@
 import logging
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.auth.dependencies import get_current_user
 from app.database.connection import PostgresConnection
 from app.database.folder_queries import create_folder_query, delete_folder_query, get_user_global_folders_query
 from app.schemas.folders import CreateFolderRequest, DeleteFolderRequest, FolderInfo, FolderResponse
@@ -11,7 +12,7 @@ from app.schemas.movements import LocationType
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/folders", tags=["folders"])
+router = APIRouter(prefix="/api/folders", tags=["folders"], dependencies=[Depends(get_current_user)])
 
 
 @router.post(

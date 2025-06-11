@@ -1,8 +1,9 @@
 import logging
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
+from app.auth.dependencies import get_current_user
 from app.database.chat_queries import delete_chat_query, insert_chat, insert_chat_messages, select_chat_by_id, select_chat_context_by_id, select_user_chat_titles_and_count_single_row, update_chat_title_query, update_conversation_model
 from app.database.connection import PostgresConnection
 import psycopg2.extras
@@ -27,7 +28,7 @@ from app.schemas.chats import (
 logger = logging.getLogger(__name__)
 
 
-router = APIRouter(prefix="/api/chats", tags=["chats"])
+router = APIRouter(prefix="/api/chats", tags=["chats"], dependencies=[Depends(get_current_user)])
 
 
 @router.post(

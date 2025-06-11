@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.auth.dependencies import get_current_user
 from app.custom_exceptions import MovementError
 from app.database.connection import PostgresConnection
 
@@ -7,7 +8,7 @@ from app.database.movement_queries import move_item
 from app.schemas.movements import MoveRequest, MoveResponse
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/move", tags=["movement"])
+router = APIRouter(prefix="/api/move", tags=["movement"], dependencies=[Depends(get_current_user)])
 
 @router.post(
     "/",
