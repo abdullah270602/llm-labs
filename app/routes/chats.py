@@ -11,7 +11,6 @@ import psycopg2.extras
 from app.routes.constant import ASSISTANT_ROLE, DEFAULT_MODEL, USER_ROLE
 from app.services.generate_title import get_chat_title
 from app.services.model_services import get_reply_from_model
-from app.services.agents import call_loop_agent
 
 psycopg2.extras.register_uuid()
 
