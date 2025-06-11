@@ -50,15 +50,9 @@ async def create_chat(request: CreateChatRequest):
         if request.model_id:
             current_model = request.model_id
                 
-        if str(current_model).strip() == "eef157f7-f48c-43d3-ad58-6bf7c482d5b8":
-             # Run the agent to generate a response
-            llm_response = await call_loop_agent(request.initial_message)
-            llm_response = str(llm_response)
-            print("🐍 File: routes/chats.py | Line: 58 | undefined ~ llm_response",llm_response)
-        
-        else:
-            # Call LLM to generate a response
-            llm_response = get_reply_from_model(model_id=current_model, chat=chat)
+        # Call LLM to generate a response
+        llm_response = get_reply_from_model(model_id=current_model, chat=chat)
+
     except Exception as e:
         logger.error(f"Error during LLM call for title generation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate chat response")
